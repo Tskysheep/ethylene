@@ -1,0 +1,6 @@
+把ip21odbc.dll拷贝到winnt\system32目录下
+在cmd窗口，执行 regsvr32 ip21odbc.dll
+成功后在odbc数据源里就可以进行添加了。
+
+数据源名自己添加，IP地址为10.112.200.22
+没有用户名和密码
