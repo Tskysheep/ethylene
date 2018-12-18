@@ -645,11 +645,11 @@ Item {
                                 if(server.isPushingIncompleteDatas(str))
                                     console.log("************* push invalid datas;")
                                     insertTest(location,temp,tubenum)
-                                    //server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
+                                    server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
 
                             }else{
                                 insertTest(location,temp,tubenum)
-                                //server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
+                                server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
                             }
                         }
                     }
@@ -721,11 +721,11 @@ Item {
                                 if(server.isPushingIncompleteDatas(str))//sky:！！！！这里有逻辑问题，无论选择是或否，都会上传数据，要搞清楚
                                     console.log("************* push invalid datas;")
                                     insertTest(location,temp,tubenum)
-                                    //server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
+                                    server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
                             } else{
     //                        console.log("temp:",temp18s[a],"   ",a);
                                 insertTest(location,temp,tubenum)
-                            //server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
+                                server.pushDatas(String(tubenum),String(s),String(location),String(temp),String(dateTime));
                             }
                         }
     //                    console.log("group:",g,"tubenum:",tubenum,"foruneNum:",s,"location:",location,"temp:",temp,"datetime:",dateTime);
