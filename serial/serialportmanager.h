@@ -9,6 +9,7 @@
 #include <QtDebug>
 #include <QTimer>
 #include <QTime>
+#include<QMap>
 class SerialPortManager : public QObject
 {
     Q_OBJECT
@@ -36,6 +37,7 @@ public:
     //设置bufferDates对象的值
     void setRevDatas(QString data){
         bufferDatas=data;
+        datasMap.clear();
     }
 
     //延时函数
@@ -76,6 +78,7 @@ private:
 
     bool isreadingDatas;
     QString sendDataStr;
+    QMap<int,QString> datasMap;
 };
 
 #endif // SERIALPORTMANAGER_H

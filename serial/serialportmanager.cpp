@@ -75,24 +75,41 @@ void SerialPortManager::readDatas(){
 //获取接收的数据, 并判断是否结束
 void SerialPortManager::readingDatas()
 {
-    qDebug()<<"==="<<this->seriaPort.bytesAvailable()<<endl;
+    //qDebug()<<"==="<<this->seriaPort.bytesAvailable()<<endl;
     //sky：修改 2018.12.07
     //if(this->seriaPort.bytesAvailable()>0){
-    if(bufferDatas.isEmpty()||bufferDatas.count("#") < 8){
-        //sky：修改 2018.12.07
+    if(datasMap.isEmpty()||datasMap.size() < 8){
+        //sky：修改 2018.12.20
         //bufferDatas+=seriaPort.readAll().data();
 //-------------------------sky 接受逻辑---------------
-        if(bufferDatas.isEmpty()){
-            bufferDatas += seriaPort.readAll().data();
-            qDebug()<<"----------1"<<bufferDatas;
+        if(this->seriaPort.bytesAvailable() > 0){ //当有数据时才执行一下操作，已节省时间
+            if(datasMap.isEmpty()){
+               QString tmpstr = seriaPort.readAll().data();
+               qDebug()<<tmpstr;
+               QStringList strls = tmpstr.split(",");
+               int key = strls[0].section("",5,5).toInt();//以窗口号作为字典的键值
+               datasMap.insert(key,tmpstr);//因为当前字典为空，将数据直接插入
 
-        }else{
-            QString tmp = seriaPort.readAll().data();
-            if(!bufferDatas.contains(tmp)){
-                bufferDatas += tmp;
-                qDebug()<<"----------2"<<bufferDatas;
+            }else{
+                QString tmpstr = seriaPort.readAll().data();
+                qDebug()<<tmpstr;
+                QStringList strls = tmpstr.split(",");
+                int key = strls[0].section("",5,5).toInt();
+                if(datasMap.contains(key)){//判断新接收的数据是否已经在字典中存在
+                    if(datasMap.value(key) == tmpstr){//如果新接收的数据和字典中的一样，不作处理
+
+                    }else{//如果新接收的数据和字典中的不一样,提示，覆盖
+                        qDebug()<<key<<"号窗口发现数据有差异:";
+                        qDebug()<<"旧数据："<<datasMap.value(key);
+                        qDebug()<<"新数据："<<tmpstr;
+                        qDebug()<<"已将新数据覆盖旧数据";
+                        datasMap.insert(key,tmpstr);
+                    }
+                }else{//新接收的数据在字典中不存在，直接插入
+                    datasMap.insert(key,tmpstr);
+                }
+
             }
-
         }
 //-----------------------sky 接受逻辑---------------
 //        delay_MSec_Suspend(2000);
@@ -100,6 +117,10 @@ void SerialPortManager::readingDatas()
 
     }else{
         qDebug()<<"receive over"<<bufferDatas<<endl;
+        //将数据整合
+        for(int i = 1;i <= datasMap.size();i++){
+            bufferDatas += datasMap.value(i);
+        }
         //读取完毕信号
         readingFinish();
         //数据变化信号
