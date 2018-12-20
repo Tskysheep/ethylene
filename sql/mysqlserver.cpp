@@ -508,6 +508,7 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
     QSqlQuery query;
     QList<QDateTime> get_outTime_forCot[48];
 
+    //sky:入管温度数据查询
     QString sqlstr1="select * from table_in where FN="+QString::number (forunceNum)+
             " and Time>='"+from_DateTime.date ().toString ("yyyy-MM-dd")+"'"+
             " and Time<='"+to_DateTime.date ().toString ("yyyy-MM-dd")+"'";
@@ -532,6 +533,8 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
     }
     qDebug()<<"应该是这？："<<ttilikaibin<<endl;//sky:测试用的？
     query.clear ();
+
+    //sky:出管温度数据查询
     sqlstr1="select * from table_out where FN="+QString::number (forunceNum)+
             " and Time>='"+from_DateTime.date ().toString ("yyyy-MM-dd")+"'"+
             " and Time<='"+to_DateTime.date ().toString ("yyyy-MM-dd")+"'";

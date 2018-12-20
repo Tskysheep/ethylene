@@ -52,7 +52,7 @@ Item {
         var seg1=String(str).match(new RegExp(",","g"));
         console.log("number is,",seg1.length);
 
-        //校检符号位#的个数是否整齐，单端8个
+        //校检符号位#的个数是否整齐，单端8个//sky:按照新的数据格式，#应该为16个，也是8的倍数，不用修改
         var seg2=String(str).match(new RegExp("#","g"));
         console.log("number is,",seg2.length);
 
@@ -61,7 +61,7 @@ Item {
         }
 
         //排错2
-        var value=str.toString().split("??");
+        var value=str.toString().split("??");//sky:清除掉“？？”
 
 
         /*删除换行符的数据，占两个字符*/
@@ -77,7 +77,7 @@ Item {
             console.log(a,"  ",value[a].length,"  ",value[a]);
         }
         console.log("kk:",value.length,value.toString());
-        if(value.length%9===0&&value.length>0){
+        if(value.length%8===0&&value.length>0){
             return true;
         }
         else{
@@ -519,6 +519,7 @@ Item {
             var value=datas.toString().split("??");//sky:根据？？切分数据 返回的是[] 每个元素是字符串
 
 
+
             /*删除换行符的数据，占两个字符*/
             for(var a=0;a<value.length;a++){
                 if(value[a].length<20){
@@ -527,70 +528,121 @@ Item {
             }
 
 
-            var count=value.length/9;//sky:计算有多少组数据，每组数据九条，第一条是时间信息数据
+            var count=value.length/8;//sky:计算有多少组数据，每组数据8条 count == 1
 
             for(var index=0;index<count;index++){
-                console.log("header:",value[9*index+0]);
+//                console.log("header:",value[9*index+0]);
 
-                var date=value[9*index+0].substr(value[9*index+0].indexOf("<")+1,8);
-                console.log("date:",date);
+//                var date=value[9*index+0].substr(value[9*index+0].indexOf("<")+1,8);
+//                console.log("date:",date);
+//                /*年*/
+//                var year=String(date).substring(0,4);
+//                console.log("year:",year);
+//                /*月*/
+//                var month=String(date).substring(4,6);
+//                console.log("month",month);
+//                /*日*/
+//                var day=String(date).substring(6,8);
+//                console.log("day",day);
+
+//                /*转换*/
+//                date=year+"-"+month+"-"+day;
+//                console.log("Date",date);
+
+//                /*时间*/
+//                var time=String(value[9*index+0]).split("-")[1];
+//                console.log("time:",time);
+//                /*时*/
+//                var hours=String(time).split(":")[0];
+//                if(Number(hours)<10)
+//                    hours="0"+String(Number(hours));
+//                else
+//                    hours=String(Number(hours));
+
+//                /*分*/
+//                var minute=String(time).split(":")[1];
+//                if(Number(minute)<10)
+//                    minute="0"+String(Number(minute));
+//                else
+//                    minute=String(Number(minute));
+
+//                /*秒*/
+//                var second=String(time).split(":")[2];
+//                if(Number(second)<10)
+//                    second="0"+String(Number(second));
+//                else
+//                    second=String(Number(second));
+//                /*转换*/
+//                time=hours+":"+minute+":"+second;
+
+
+//                /*时间+日期*/
+//                var dateTime=date+" "+time;
+//                console.log("dateTime convertion:",dateTime);
+
+
+
+//                /*炉号*/
+//                var s=Number(String(value[9*index+0]).split("-")[2].charAt(2));
+//                console.log("炉号",s);
+
+//-----------------------sky:新数据格式，获取时间和炉号
+                var now = new Date();
+
                 /*年*/
-                var year=String(date).substring(0,4);
-                console.log("year:",year);
+                var year = now.getFullYear();
+                console.log("year:",year)
                 /*月*/
-                var month=String(date).substring(4,6);
-                console.log("month",month);
+                var month = now.getMonth() + 1;
+                console.log("month:",month)
                 /*日*/
-                var day=String(date).substring(6,8);
-                console.log("day",day);
+                var day = now.getDate();
+                console.log("day:",day)
 
                 /*转换*/
-                date=year+"-"+month+"-"+day;
-                console.log("Date",date);
+                var date = year + "-" + month +"-" + day;
 
-                /*时间*/
-                var time=String(value[9*index+0]).split("-")[1];
-                console.log("time:",time);
                 /*时*/
-                var hours=String(time).split(":")[0];
-                if(Number(hours)<10)
-                    hours="0"+String(Number(hours));
-                else
-                    hours=String(Number(hours));
+                var hours = now.getHours();
+                if(hours < 10){
+                    hours = "0"+hours
+                }
 
                 /*分*/
-                var minute=String(time).split(":")[1];
-                if(Number(minute)<10)
-                    minute="0"+String(Number(minute));
-                else
-                    minute=String(Number(minute));
+                var minute = now.getMinutes();
+                if(minute < 10){
+                    minute = "0"+minute
+                }
+
 
                 /*秒*/
-                var second=String(time).split(":")[2];
-                if(Number(second)<10)
-                    second="0"+String(Number(second));
-                else
-                    second=String(Number(second));
-                /*转换*/
-                time=hours+":"+minute+":"+second;
+                var second = now.getSeconds();
+                if(second < 10){
+                    second = "0"+second
+                }
 
+                /*转换*/
+                var time = hours + ":" + minute + ":" + second;
 
                 /*时间+日期*/
-                var dateTime=date+" "+time;
+                var dateTime = date + " " + time;
+
                 console.log("dateTime convertion:",dateTime);
 
-
-
                 /*炉号*/
-                var s=Number(String(value[9*index+0]).split("-")[2].charAt(2));
-                console.log("炉号",s);
+                var s = value[8*index+0].split(",")[0].charAt(0);
+                console.log("炉号",s)
+
+
+
+
  //----------------------sky:映射修改测试-------------------
                 //炉号为偶数炉管映射处理
                 if(s % 2 === 0){
-                    for(var j = 1 ;j < 9 ;j++){
-                        var w = Number(String(value[9*index+j]).split("#")[1].charAt(0));
+                    for(var j = 0 ;j < 8 ;j++){
+                        var w = Number(String(value[8*index+j]).split("#")[1].charAt(0));
                         console.log("窗口号",w);
-                        var temp18s = String(value[9*index+j]).split(",");
+                        var temp18s = String(value[8*index+j]).split(",");
 
                         var g = 1;
                         var location = "tube_in";
@@ -657,11 +709,11 @@ Item {
 
                 }else{//炉号为奇数炉管映射处理
  //----------------------sky:映射修改测试-------------------
-                    for(var j=1;j<9;j++){
+                    for(var j=0;j<8;j++){
     //                        console.log(j+"号窗口：",value[9*index+j]);
-                        var w=Number(String(value[9*index+j]).split("#")[1].charAt(0));
+                        var w=Number(String(value[8*index+j]).split("#")[1].charAt(0));
                         console.log("窗口号",w);
-                        var temp18s=String(value[9*index+j]).split(",")
+                        var temp18s=String(value[8*index+j]).split(",")
 
                         //g=4;location=tube_in
                         var g=4;
