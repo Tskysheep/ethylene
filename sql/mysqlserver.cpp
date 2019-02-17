@@ -8,6 +8,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSqlError>
+#include <QtConcurrent>
 
 //时间转换 转换时间为一般格式
 static QDateTime get_cot_dateTime(QString str){
@@ -192,7 +193,7 @@ void MysqlServer::pushDatas(QString tubeNum,//炉号
 
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -265,6 +266,21 @@ MysqlServer::MysqlServer(QObject *parent) :
 
     //备份excel数据
     //    dumpDatas ();
+
+    //sky:初始化乙烯厂数据库连接相关信息
+    QString e_dbinfo = Utils::readMoreInfo();//读取配置文本信息
+    QByteArray e_dbinfo_data = e_dbinfo.toLatin1();//qstring 转 qbytearray
+    QJsonParseError json_error;//定义json解析错误变量
+    QJsonDocument jsondoc(QJsonDocument::fromJson(e_dbinfo_data,&json_error));//将qbytearry对象转为qjsondocument对象（解析josn）
+    if(json_error.error == QJsonParseError::NoError){ //判断json是否解析出错
+        QJsonObject jsobj = jsondoc.object();//获取jsonobject 对象
+        //提取数据库信息
+        e_dbtype = "Q" + jsobj["db_type"].toString();
+        e_ip = jsobj["db_ip"].toString();
+        e_dbname = jsobj["db_name"].toString();
+        e_dbport = jsobj["db_port"].toString().toInt();
+        qDebug()<<e_dbtype<<e_ip<<e_dbname<<e_dbport;
+    }
 }
 
 MysqlServer *MysqlServer::instance()
@@ -337,7 +353,7 @@ QJsonArray MysqlServer::compare_datas(int forunceNum,int tubeNum,QDateTime from_
     QList<datas_time> tube_cot_compare_datas;
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -386,12 +402,16 @@ QJsonArray MysqlServer::compare_datas(int forunceNum,int tubeNum,QDateTime from_
     db.close();
     //获取cot数据
     //创建石油厂数据接口
-    QSqlDatabase cotdb=QSqlDatabase::addDatabase("QODBC");
+    //QSqlDatabase cotdb=QSqlDatabase::addDatabase("QODBC");
+    QSqlDatabase cotdb=QSqlDatabase::addDatabase(e_dbtype);
 
     //连接石油厂数据库
-    cotdb.setHostName("10.112.200.22");
-    cotdb.setDatabaseName("History");
-    cotdb.setPort(10014);
+    //cotdb.setHostName("10.112.200.22");
+    cotdb.setHostName(e_ip);
+    //cotdb.setDatabaseName("History");
+    cotdb.setDatabaseName(e_dbname);
+    //cotdb.setPort(10014);
+    cotdb.setPort(e_dbport);
 
     bool existCot=false;
 
@@ -472,26 +492,360 @@ QJsonArray MysqlServer::compare_datas(int forunceNum,int tubeNum,QDateTime from_
 //全部显示之带cot
 //根据炉号时间为条件以JSON格式返回所有管的数据
 QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, QDateTime to_DateTime){
+    QString sFrom = from_DateTime.toString("yyyy-MM-dd hh:mm:ss");
+    QString sTo = to_DateTime.toString("yyyy-MM-dd hh:mm:ss");
 
+    QtConcurrent::run([=, forunceNum, sFrom, sTo]{
+        QJsonObject root;
+        QJsonArray tubeInData;
+        QJsonArray tubeOutData;
+        QJsonArray tubeCotData;
+
+        QDateTime from_DateTime = QDateTime::fromString(sFrom, "yyyy-MM-dd hh:mm:ss");
+        QDateTime to_DateTime = QDateTime::fromString(sTo, "yyyy-MM-dd hh:mm:ss");
+        from_DateTime.setTime(QTime(0,0));
+        to_DateTime.setTime(QTime(23,59,59));
+
+        //    qDebug()<<"全部显示的日期为："<<from_DateTime.toString(Qt::ISODate)<<"  到  "<<to_DateTime.toString(Qt::ISODate);
+
+        //清空数据
+        for(int i = 0 ; i <48 ; i++){
+            tube_in_full_search_datas[i].clear();
+            tube_out_full_search_datas[i].clear();
+            tube_cot_full_search_datas[i].clear();
+        }
+        //创建
+        QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+        db.setHostName("localhost");
+        db.setDatabaseName("schema");
+        db.setUserName("root");
+        db.setPassword("sky");
+
+        //链接数据库
+        if(db.open()){
+            qDebug()<<"database is established!";
+        }
+        else{
+            qDebug()<<"faled to connect to database";
+        }
+
+        //获取数据
+        QSqlQuery query;
+        QList<QDateTime> get_outTime_forCot[48];
+
+        //sky:入管温度数据查询
+        QString sqlstr1="select * from table_in where FN="+QString::number (forunceNum)+
+                " and Time>='"+from_DateTime.date ().toString ("yyyy-MM-dd")+"'"+
+                " and Time<='"+to_DateTime.date ().toString ("yyyy-MM-dd")+"'";
+        query.exec (sqlstr1);
+
+        int ttilikaibin=0;//sky:李凯彬？？
+        while(query.next ()){
+            ttilikaibin++;
+            const int& tn = query.value("TN").toInt();
+            const int& temp = query.value("Temp").toInt();
+            const QDateTime& dt = query.value("Time").toDateTime();
+
+            if(tn < 1 || tn > 48)
+                continue;
+            if(temp < 0)
+                continue;
+
+            datas_time data;
+            data.time = dt;
+            data.temp = temp;
+            tube_in_full_search_datas[tn - 1].append (data);
+        }
+        qDebug()<<"应该是这？："<<ttilikaibin<<endl;//sky:测试用的？
+        query.clear ();
+
+        //sky:出管温度数据查询
+        sqlstr1="select * from table_out where FN="+QString::number (forunceNum)+
+                " and Time>='"+from_DateTime.date ().toString ("yyyy-MM-dd")+"'"+
+                " and Time<='"+to_DateTime.date ().toString ("yyyy-MM-dd")+"'";
+
+        query.exec (sqlstr1);
+        while (query.next ()) {
+            const int& tn = query.value("TN").toInt();
+            const int& temp = query.value("Temp").toInt();
+            const QDateTime& dt = query.value("Time").toDateTime();
+
+            if(tn < 1 || tn > 48)
+                continue;
+            if(temp < 0)
+                continue;
+
+            datas_time data;
+            data.time = dt;
+            data.temp = temp;
+            tube_out_full_search_datas[tn - 1].append (data);
+            get_outTime_forCot[tn - 1].append(data.time);
+        }
+
+        //获取cot数据
+        //创建石油厂数据接口
+        //QSqlDatabase cotdb=QSqlDatabase::addDatabase("QODBC");
+        QSqlDatabase cotdb=QSqlDatabase::addDatabase(e_dbtype);
+
+        //连接石油厂数据库
+        //cotdb.setHostName("10.112.200.22");
+        cotdb.setHostName(e_ip);
+        //cotdb.setDatabaseName("History");
+        cotdb.setDatabaseName(e_dbname);
+        //cotdb.setPort(10014);
+        cotdb.setPort(e_dbport);
+
+        bool existCot =false;
+
+        if(cotdb.open()){
+            qDebug()<<"remote database is established!";
+            existCot = true;
+            for ( int tubeNum = 1 ; tubeNum < 49 ; tubeNum++){
+                QSqlQuery query1;
+                query1.setForwardOnly(true);
+                if(tubeNum<10){
+    /*                QString time1String = QString::number(from_DateTime.date().day(), 10)+"-"+get_cot_date_month(from_DateTime.date().month())+"-"+QString::number(from_DateTime.date().year(), 10).right(2);
+                    QString time2String = QString::number(to_DateTime.date().day(), 10)+"-"+get_cot_date_month(to_DateTime.date().month())+"-"+QString::number(to_DateTime.date().year(), 10).right(2);
+                    qDebug()<<"make time"<<time1String;
+                    query1.exec("select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >='"+time1String+" 00:00:00.0' and ts<='"+time2String+" 23:59:59.0'");
+                    query1.exec("select name,ts,value from history where name like 'TI16"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'");
+                    while(query1.next()){
+                        datas_time data;
+                        data.time=get_cot_dateTime(query1.value(1).toString());
+                        qDebug()<<"time" << query1.value(1).toString();
+                        data.temp=query1.value(2).toInt();
+                        qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+
+                        tube_cot_full_search_datas[tubeNum-1].append(data);
+                    }
+    */
+                    //sky 新查询逻辑 以出管温度的时间作为查询cot温度的条件
+
+    //方式1-1 迭代
+                    QList<QDateTime>::iterator iter = get_outTime_forCot[tubeNum - 1].begin();
+                    for(;iter != get_outTime_forCot[tubeNum - 1].end();iter++){
+                        QString timeString;
+                        QString timeString2;
+                        if(iter->date().day() < 10){
+                            timeString = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:ss");
+                        }else{
+                            timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //QString timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                        //qDebug()<<timeString;
+                        //select name,ts,value from history where name like 'TI1601_5' and ts ='2-OCT-17 00:00:00'
+                        //QString querstr = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'";
+                        //qDebug()<<querstr;
+                        query1.exec("select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >= '"+timeString + "'" + " and ts <= '"+timeString2 + "'");
+                        while(query1.next()){
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum-1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+
+
+    /*方式1-2 普通下标
+     *              for(int a = 0; a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        QDateTime t = get_outTime_forCot[tubeNum - 1].at(a);
+                        QString timeString = QString::number(t.date().day(),10)+"-"+get_cot_date_month(t.date().month())+"-"+QString::number(t.date().year(),10).right(2) + " " + t.time().toString("hh:mm:00");
+                        //qDebug()<<timeString;
+                        QString querstr = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'";
+                        qDebug()<<querstr;
+                        query1.exec("select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'");
+                        while(query1.next()){
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum-1].append(data);
+                        }
+                    }
+    */
+
+
+                }
+                else {
+    /*                QString time1String = QString::number(from_DateTime.date().day(), 10)+"-"+get_cot_date_month(from_DateTime.date().month())+"-"+QString::number(from_DateTime.date().year(), 10).right(2);
+                    QString time2String = QString::number(to_DateTime.date().day(), 10)+"-"+get_cot_date_month(to_DateTime.date().month())+"-"+QString::number(to_DateTime.date().year(), 10).right(2);
+                    query1.exec("select name,ts,value from history where name like 'TI16"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >='"+time1String+" 00:00:00.0' and ts<='"+time2String+" 23:59:59.0'");
+
+                    while(query1.next()){
+                        datas_time data;
+                        data.time=get_cot_dateTime(query1.value(1).toString());
+                        data.temp=query1.value(2).toInt();
+                        qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                        tube_cot_full_search_datas[tubeNum-1].append(data);
+                    }
+    */
+
+                    //sky 新查询逻辑 以出管温度的时间作为查询cot温度的条件
+
+    //方式1-1 迭代
+                    QList<QDateTime>::iterator iter = get_outTime_forCot[tubeNum - 1].begin();
+                    for(;iter != get_outTime_forCot[tubeNum - 1].end();iter++){
+                        QString timeString;
+                        QString timeString2;
+                        if(iter->date().day() < 10){
+                            timeString = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //QString timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                        //qDebug()<<timeString;
+                        //select name,ts,value from history where name like 'TI1601_5' and ts ='2-OCT-17 00:00:00'
+                        //QString querstr = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'";
+                        //qDebug()<<querstr;
+                        query1.exec("select name,ts,value from history where name like 'TI16"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >= '"+timeString + "'" + " and ts <= '"+timeString2 + "'");
+                        while(query1.next()){
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum-1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+
+
+    /*方式1-2 普通下标
+     *              for(int a = 0; a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        QDateTime t = get_outTime_forCot[tubeNum - 1].at(a);
+                        QString timeString = QString::number(t.date().day(),10)+"-"+get_cot_date_month(t.date().month())+"-"+QString::number(t.date().year(),10).right(2) + " " + t.time().toString("hh:mm:00");
+                        //qDebug()<<timeString;
+                        QString querstr = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'";
+                        qDebug()<<querstr;
+                        query1.exec("select name,ts,value from history where name like 'TI16"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'");
+                        while(query1.next()){
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum-1].append(data);
+                        }
+                    }
+    */
+
+                }
+            }
+
+            for(int a=0;a<48;a++){
+                sortData(&tube_cot_full_search_datas[a]);
+            }
+        }
+        else{
+            qDebug()<<"faled to connect to remote database";
+
+        }
+
+
+        //生成json数据
+        for(int a=0;a<48;a++){
+            QJsonArray jsarr1;
+            QJsonArray jsarr2;
+            QJsonArray jsarr3;
+            for(auto it:tube_in_full_search_datas[a]){
+                QJsonObject obj;
+                obj.insert ("time",it.time.toString ("yy/M/d hh:mm:ss"));
+                obj.insert ("temp",it.temp);
+                //qDebug()<<"time"<<it.time.toString ("yy/M/d hh:mm:ss")<<"  Temp:"<<it.temp;
+                jsarr1.append (obj);
+            }
+            for(auto it:tube_out_full_search_datas[a]){
+                QJsonObject obj;
+                obj.insert ("time",it.time.toString ("yy/M/d hh:mm:ss"));
+                obj.insert ("temp",it.temp);
+                jsarr2.append (obj);
+            }
+            if(existCot){
+                for(auto it:tube_cot_full_search_datas[a]){
+                    QJsonObject obj;
+                    obj.insert ("time",it.time.toString ("yy/M/d hh:mm:ss"));
+                    obj.insert ("temp",it.temp);
+                    jsarr3.append (obj);
+                }
+            }
+
+            QJsonObject o1;
+            QJsonObject o2;
+            QJsonObject o3;
+            o1.insert("data",jsarr1);
+            o2.insert("data",jsarr2);
+            o3.insert("data",jsarr3);
+            tubeInData.append (o1);
+            tubeOutData.append (o2);
+            qDebug()<<"YY1:"+jsarr1.count();//<<"YY2:"<<jsarr2.count()<<"YY3:"<<jsarr1.count<<endl;
+
+            //test for cot data
+            tubeCotData.append (o3);
+        }
+
+        root.insert ("tubeInData",tubeInData);
+        root.insert ("tubeOutData",tubeOutData);
+        if(existCot){
+            root.insert ("tubeCotData",tubeCotData);
+            cotdb.close();
+        }else {
+            //sky : cot 数据库没有打开，自然就不用close
+            //sky 19/02/11  将root.insert("tubeCotData","null"); 改为 root.insert("tubeCotData","");
+            root.insert("tubeCotData","");
+
+        }
+
+
+
+        //关闭数据库
+        db.close();
+
+        //test
+//        qDebug()<<"LLL:"<<QString(QJsonDocument(root).toJson());
+        emit allTubeShowDataGot(root);
+
+
+    //        return root;
+
+        //    //处理数据
+        //    qDebug()<<"数据处理****************：“";
+        //    mdeal_with(&tube_in_show_datas);
+        //    mdeal_with(&tube_out_show_datas);
+//        return root;
+
+    });
+
+    return QJsonObject();
+}
+
+QJsonObject MysqlServer::diagnoseData(int forunceNum,QStringList column_names, QDateTime frome_DateTime, QDateTime to_DateTime)
+{
+    qDebug()<<column_names.count();
     QJsonObject root;
     QJsonArray tubeInData;
     QJsonArray tubeOutData;
     QJsonArray tubeCotData;
+    QJsonArray tubeCotData2;
+    QJsonArray tubeDiagnoseCotData;
 
-    from_DateTime.setTime(QTime(0,0));
+    frome_DateTime.setTime(QTime(0,0));
     to_DateTime.setTime(QTime(23,59,59));
-
-    //    qDebug()<<"全部显示的日期为："<<from_DateTime.toString(Qt::ISODate)<<"  到  "<<to_DateTime.toString(Qt::ISODate);
 
     //清空数据
     for(int i = 0 ; i <48 ; i++){
         tube_in_full_search_datas[i].clear();
         tube_out_full_search_datas[i].clear();
         tube_cot_full_search_datas[i].clear();
+        tube_cot_full_search_datas2[i].clear();
+        diagnose_tube_cot_full_search_datas[i].clear();
     }
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -506,12 +860,15 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
 
     //获取数据
     QSqlQuery query;
+    QList<QDateTime> get_inTime_forCot[48];
     QList<QDateTime> get_outTime_forCot[48];
 
     //sky:入管温度数据查询
     QString sqlstr1="select * from table_in where FN="+QString::number (forunceNum)+
-            " and Time>='"+from_DateTime.date ().toString ("yyyy-MM-dd")+"'"+
-            " and Time<='"+to_DateTime.date ().toString ("yyyy-MM-dd")+"'";
+            " and Time>='"+frome_DateTime.date().toString ("yyyy-MM-dd")+"'"+
+            " and Time<='"+to_DateTime.date().toString ("yyyy-MM-dd")+"'";
+    qDebug()<<sqlstr1;
+
     query.exec (sqlstr1);
 
     int ttilikaibin=0;//sky:李凯彬？？
@@ -530,13 +887,14 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
         data.time = dt;
         data.temp = temp;
         tube_in_full_search_datas[tn - 1].append (data);
+        get_inTime_forCot[tn - 1].append(dt);
     }
     qDebug()<<"应该是这？："<<ttilikaibin<<endl;//sky:测试用的？
     query.clear ();
 
     //sky:出管温度数据查询
     sqlstr1="select * from table_out where FN="+QString::number (forunceNum)+
-            " and Time>='"+from_DateTime.date ().toString ("yyyy-MM-dd")+"'"+
+            " and Time>='"+frome_DateTime.date ().toString ("yyyy-MM-dd")+"'"+
             " and Time<='"+to_DateTime.date ().toString ("yyyy-MM-dd")+"'";
 
     query.exec (sqlstr1);
@@ -554,18 +912,397 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
         data.time = dt;
         data.temp = temp;
         tube_out_full_search_datas[tn - 1].append (data);
-        get_outTime_forCot[tn - 1].append(data.time);
+        get_outTime_forCot[tn - 1].append(dt);
     }
 
-    //获取cot数据
+
+    //获取横跨段数据
     //创建石油厂数据接口
-    QSqlDatabase cotdb=QSqlDatabase::addDatabase("QODBC");
+    //QSqlDatabase cotdb=QSqlDatabase::addDatabase("QODBC");
+    QSqlDatabase cotdb=QSqlDatabase::addDatabase(e_dbtype);
 
     //连接石油厂数据库
-    cotdb.setHostName("10.112.200.22");
-    cotdb.setDatabaseName("History");
-    cotdb.setPort(10014);
+    //cotdb.setHostName("10.112.200.22");
+    cotdb.setHostName(e_ip);
+    //cotdb.setDatabaseName("History");
+    cotdb.setDatabaseName(e_dbname);
+    //cotdb.setPort(10014);
+    cotdb.setPort(e_dbport);
 
+
+    //横跨段查询
+    if(cotdb.open()){
+        qDebug()<<"remote database is established!";
+        QSqlQuery query1;
+        for ( int tubeNum = 1 ; tubeNum < 49 ; tubeNum++){
+            query1.clear();
+            query1.setForwardOnly(true);
+             QDateTime in_time;
+             QString timeString1;
+             QString querStr1;
+             QDateTime out_time;
+             QString timeString2;
+             QString querStr2;
+            //根据横跨段字段数，将相应的压力值分配到每根管
+            switch (column_names.size()) {
+            case 1://如果只有一个压力值，则48八根管都用一个压力值
+                //根据出管时间查
+                for(int a = 0;a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                    out_time = get_outTime_forCot[tubeNum - 1].at(a);
+                    if(out_time.date().day() < 10){
+                        timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                        timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                    }else{
+                        timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                        timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                    }
+                    //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                    querStr1 = "select name,ts,value from history where name like '"+column_names.at(0)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                    //qDebug()<<querStr1;
+                    //continue;
+                    query1.exec(querStr1);
+                    while (query1.next()) {
+                        datas_time data;
+                        data.time = get_cot_dateTime(query1.value(1).toString());
+                        data.temp = query1.value(2).toInt();
+                        qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                        tube_cot_full_search_datas[tubeNum - 1].append(data);
+                    }
+                    qDebug()<<query1.lastQuery();
+                }
+                //根据入管时间查
+                for(int a = 0;a < get_inTime_forCot[tubeNum - 1].count(); a++){
+                    in_time = get_inTime_forCot[tubeNum - 1].at(a);
+                    if(in_time.date().day() < 10){
+                        timeString1 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                        timeString2 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                    }else{
+                        timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                        timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                    }
+                    //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                    querStr2 = "select name,ts,value from history where name like '"+column_names.at(0)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                    //qDebug()<<querStr2;
+                    //continue;
+                    query1.exec(querStr2);
+                    while (query1.next()) {
+                        datas_time data;
+                        data.time = get_cot_dateTime(query1.value(1).toString());
+                        data.temp = query1.value(2).toInt();
+                        qDebug()<<"in_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                        tube_cot_full_search_datas2[tubeNum - 1].append(data);
+                    }
+                    qDebug()<<query1.lastQuery();
+                }
+                break;
+                //如果有2个压力值，前24根管用第一个压力值，后24根管用第二个压力值
+            case 2:
+                if(tubeNum >= 1 && tubeNum <= 24){
+                    for(int a = 0;a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        out_time = get_outTime_forCot[tubeNum - 1].at(a);
+                        if(out_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr1 = "select name,ts,value from history where name like '"+column_names.at(0)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr1;
+                        //continue;
+                        query1.exec(querStr1);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                    //根据入管时间查
+                    for(int a = 0;a < get_inTime_forCot[tubeNum - 1].count(); a++){
+                        in_time = get_inTime_forCot[tubeNum - 1].at(a);
+                        if(in_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr2 = "select name,ts,value from history where name like '"+column_names.at(0)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //continue;
+                        query1.exec(querStr2);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"in_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas2[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                }else{
+                    for(int a = 0;a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        out_time = get_outTime_forCot[tubeNum - 1].at(a);
+                        if(out_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr1 = "select name,ts,value from history where name like '"+column_names.at(1)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr1;
+                        //continue;
+                        query1.exec(querStr1);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                    //根据入管时间查
+                    for(int a = 0;a < get_inTime_forCot[tubeNum - 1].count(); a++){
+                        in_time = get_inTime_forCot[tubeNum - 1].at(a);
+                        if(in_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr2 = "select name,ts,value from history where name like '"+column_names.at(1)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr2;
+                        //continue;
+                        query1.exec(querStr2);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"in_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas2[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                }
+                break;
+                //如果有4个压力值，则每12根管对应一个压力值
+            case 4:
+                if(tubeNum >= 1 && tubeNum <= 12){
+                    for(int a = 0;a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        out_time = get_outTime_forCot[tubeNum - 1].at(a);
+                        if(out_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr1 = "select name,ts,value from history where name like '"+column_names.at(0)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr1;
+                        //continue;
+                        query1.exec(querStr1);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                    //根据入管时间查
+                    for(int a = 0;a < get_inTime_forCot[tubeNum - 1].count(); a++){
+                        in_time = get_inTime_forCot[tubeNum - 1].at(a);
+                        if(in_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr2 = "select name,ts,value from history where name like '"+column_names.at(0)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr2;
+                        //continue;
+                        query1.exec(querStr2);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"in_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas2[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+
+                }else if(tubeNum >= 13 && tubeNum <= 24){
+                    for(int a = 0;a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        out_time = get_outTime_forCot[tubeNum - 1].at(a);
+                        if(out_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr1 = "select name,ts,value from history where name like '"+column_names.at(1)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr1;
+                        //continue;
+                        query1.exec(querStr1);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                    //根据入管时间查
+                    for(int a = 0;a < get_inTime_forCot[tubeNum - 1].count(); a++){
+                        in_time = get_inTime_forCot[tubeNum - 1].at(a);
+                        if(in_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr2 = "select name,ts,value from history where name like '"+column_names.at(1)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr2;
+                        //continue;
+                        query1.exec(querStr2);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"in_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas2[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+
+                }else if(tubeNum >= 25 && tubeNum <= 36){
+                    for(int a = 0;a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        out_time = get_outTime_forCot[tubeNum - 1].at(a);
+                        if(out_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr1 = "select name,ts,value from history where name like '"+column_names.at(2)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr1;
+                        //continue;
+                        query1.exec(querStr1);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                    //根据入管时间查
+                    for(int a = 0;a < get_inTime_forCot[tubeNum - 1].count(); a++){
+                        in_time = get_inTime_forCot[tubeNum - 1].at(a);
+                        if(in_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr2 = "select name,ts,value from history where name like '"+column_names.at(2)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr2;
+                        //continue;
+                        query1.exec(querStr2);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"in_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas2[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+
+                }else{
+                    for(int a = 0;a < get_outTime_forCot[tubeNum - 1].count(); a++){
+                        out_time = get_outTime_forCot[tubeNum - 1].at(a);
+                        if(out_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }
+                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr1 = "select name,ts,value from history where name like '"+column_names.at(3)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr1;
+                        //continue;
+                        query1.exec(querStr1);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                    //根据入管时间查
+                    for(int a = 0;a < get_inTime_forCot[tubeNum - 1].count(); a++){
+                        in_time = get_inTime_forCot[tubeNum - 1].at(a);
+                        if(in_time.date().day() < 10){
+                            timeString1 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = "0" + QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }else{
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().toString("hh:mm:00.0");
+                            timeString2 = QString::number(in_time.date().day(),10)+"-"+get_cot_date_month(in_time.date().month())+"-"+QString::number(in_time.date().year(),10).right(2) + " " + in_time.time().addSecs(60).toString("hh:mm:00.0");
+                        }                        //select name,ts,value from history where name like 'PI1451_5' and ts ='2-OCT-17 00:00:00'
+                        querStr2 = "select name,ts,value from history where name like '"+column_names.at(3)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                        //qDebug()<<querStr2;
+                        //continue;
+                        query1.exec(querStr2);
+                        while (query1.next()) {
+                            datas_time data;
+                            data.time = get_cot_dateTime(query1.value(1).toString());
+                            data.temp = query1.value(2).toInt();
+                            qDebug()<<"in_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                            tube_cot_full_search_datas2[tubeNum - 1].append(data);
+                        }
+                        qDebug()<<query1.lastQuery();
+                    }
+                }
+                break;
+            }
+
+        }
+    }
+    else{
+        qDebug()<<"faled to connect to remote database";
+
+    }
+
+    if(cotdb.isOpen()){
+        cotdb.close();
+    }
+
+
+    //cot 查询
     bool existCot =false;
 
     if(cotdb.open()){
@@ -575,34 +1312,74 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
             QSqlQuery query1;
             query1.setForwardOnly(true);
             if(tubeNum<10){
-                QString time1String = QString::number(from_DateTime.date().day(), 10)+"-"+get_cot_date_month(from_DateTime.date().month())+"-"+QString::number(from_DateTime.date().year(), 10).right(2);
-                QString time2String = QString::number(to_DateTime.date().day(), 10)+"-"+get_cot_date_month(to_DateTime.date().month())+"-"+QString::number(to_DateTime.date().year(), 10).right(2);
-                query1.exec("select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >='"+time1String+" 00:00:00.0' and ts<='"+time2String+" 23:59:59.0'");
-                while(query1.next()){
-                    datas_time data;
-                    data.time=get_cot_dateTime(query1.value(1).toString());
-                    data.temp=query1.value(2).toInt();
-                    qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
-                    tube_cot_full_search_datas[tubeNum-1].append(data);
+               //sky 新查询逻辑 以出管温度的时间作为查询cot温度的条件
+
+//方式1-1 迭代
+                QList<QDateTime>::iterator iter = get_outTime_forCot[tubeNum - 1].begin();
+                for(;iter != get_outTime_forCot[tubeNum - 1].end();iter++){
+                    QString timeString;
+                    QString timeString2;
+                    if(iter->date().day() < 10){
+                        timeString = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                        timeString2 = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:ss");
+                    }else{
+                        timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                        timeString2 = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:00.0");
+                    }
+                    //QString timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                    //qDebug()<<timeString;
+                    //select name,ts,value from history where name like 'TI1601_5' and ts ='2-OCT-17 00:00:00'
+                    //QString querstr = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'";
+                    //qDebug()<<querstr;
+                    query1.exec("select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >= '"+timeString + "'" + " and ts <= '"+timeString2 + "'");
+                    while(query1.next()){
+                        datas_time data;
+                        data.time = get_cot_dateTime(query1.value(1).toString());
+                        data.temp = query1.value(2).toInt();
+                        qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                        diagnose_tube_cot_full_search_datas[tubeNum-1].append(data);
+                    }
+                    qDebug()<<query1.lastQuery();
                 }
+
+
             }
             else {
-                QString time1String = QString::number(from_DateTime.date().day(), 10)+"-"+get_cot_date_month(from_DateTime.date().month())+"-"+QString::number(from_DateTime.date().year(), 10).right(2);
-                QString time2String = QString::number(to_DateTime.date().day(), 10)+"-"+get_cot_date_month(to_DateTime.date().month())+"-"+QString::number(to_DateTime.date().year(), 10).right(2);
-                query1.exec("select name,ts,value from history where name like 'TI16"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >='"+time1String+" 00:00:00.0' and ts<='"+time2String+" 23:59:59.0'");
+                //sky 新查询逻辑 以出管温度的时间作为查询cot温度的条件
 
-                while(query1.next()){
-                    datas_time data;
-                    data.time=get_cot_dateTime(query1.value(1).toString());
-                    data.temp=query1.value(2).toInt();
-                    qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
-                    tube_cot_full_search_datas[tubeNum-1].append(data);
+//方式1-1 迭代
+                QList<QDateTime>::iterator iter = get_outTime_forCot[tubeNum - 1].begin();
+                for(;iter != get_outTime_forCot[tubeNum - 1].end();iter++){
+                    QString timeString;
+                    QString timeString2;
+                    if(iter->date().day() < 10){
+                        timeString = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                        timeString2 = "0" + QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:00.0");
+                    }else{
+                        timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                        timeString2 = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().addSecs(60).toString("hh:mm:00.0");
+                    }
+                    //QString timeString = QString::number(iter->date().day(),10)+"-"+get_cot_date_month(iter->date().month())+"-"+QString::number(iter->date().year(),10).right(2) + " " + iter->time().toString("hh:mm:00.0");
+                    //qDebug()<<timeString;
+                    //select name,ts,value from history where name like 'TI1601_5' and ts ='2-OCT-17 00:00:00'
+                    //QString querstr = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts ='"+timeString + "'";
+                    //qDebug()<<querstr;
+                    query1.exec("select name,ts,value from history where name like 'TI16"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >= '"+timeString + "'" + " and ts <= '"+timeString2 + "'");
+                    while(query1.next()){
+                        datas_time data;
+                        data.time = get_cot_dateTime(query1.value(1).toString());
+                        data.temp = query1.value(2).toInt();
+                        qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                        diagnose_tube_cot_full_search_datas[tubeNum-1].append(data);
+                    }
+                    qDebug()<<query1.lastQuery();
                 }
+
             }
         }
 
         for(int a=0;a<48;a++){
-            sortData(&tube_cot_full_search_datas[a]);
+            sortData(&diagnose_tube_cot_full_search_datas[a]);
         }
     }
     else{
@@ -610,65 +1387,100 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
 
     }
 
+    if(cotdb.isOpen()){
+        cotdb.close();
+    }
 
     //生成json数据
     for(int a=0;a<48;a++){
         QJsonArray jsarr1;
         QJsonArray jsarr2;
         QJsonArray jsarr3;
+        QJsonArray jsarr4;
+        QJsonArray jsarr5;
         for(auto it:tube_in_full_search_datas[a]){
             QJsonObject obj;
-            obj.insert ("time",it.time.toString ("yy/M/d hh:mm:ss"));
+            obj.insert ("time",it.time.toString ("yyyy-MM-dd hh:mm:ss"));
             obj.insert ("temp",it.temp);
             //qDebug()<<"time"<<it.time.toString ("yy/M/d hh:mm:ss")<<"  Temp:"<<it.temp;
             jsarr1.append (obj);
         }
         for(auto it:tube_out_full_search_datas[a]){
             QJsonObject obj;
-            obj.insert ("time",it.time.toString ("yy/M/d hh:mm:ss"));
+            obj.insert ("time",it.time.toString ("yyyy-MM-dd hh:mm:ss"));
             obj.insert ("temp",it.temp);
             jsarr2.append (obj);
         }
-        if(existCot){
-            for(auto it:tube_cot_full_search_datas[a]){
-                QJsonObject obj;
-                obj.insert ("time",it.time.toString ("yy/M/d hh:mm:ss"));
-                obj.insert ("temp",it.temp);
-                jsarr3.append (obj);
-            }
+
+        for(auto it:tube_cot_full_search_datas[a]){
+            QJsonObject obj;
+            obj.insert ("time",it.time.toString ("yyyy-MM-dd hh:mm:ss"));
+            obj.insert ("temp",it.temp);
+            jsarr3.append (obj);
+        }
+        for(auto it:tube_cot_full_search_datas2[a]){
+            QJsonObject obj;
+            obj.insert ("time",it.time.toString ("yyyy-MM-dd hh:mm:ss"));
+            obj.insert ("temp",it.temp);
+            jsarr4.append (obj);
+
+        }
+        for(auto it:diagnose_tube_cot_full_search_datas[a]){
+            QJsonObject obj;
+            obj.insert("time",it.time.toString("yyyy-MM-dd hh:mm:ss"));
+            obj.insert("temp",it.temp);
+            jsarr5.append(obj);
         }
 
         QJsonObject o1;
         QJsonObject o2;
         QJsonObject o3;
+        QJsonObject o4;
+        QJsonObject o5;
         o1.insert("data",jsarr1);
         o2.insert("data",jsarr2);
         o3.insert("data",jsarr3);
+        o4.insert("data",jsarr4);
+        o5.insert("data",jsarr5);
         tubeInData.append (o1);
         tubeOutData.append (o2);
-        qDebug()<<"YY1:"+jsarr1.count();//<<"YY2:"<<jsarr2.count()<<"YY3:"<<jsarr1.count<<endl;
+        tubeCotData.append(o3);
+        tubeCotData2.append(o4);
+        tubeDiagnoseCotData.append(o5);
 
-        //test for cot data
-        tubeCotData.append (o3);
+
+
+        //qDebug()<<"YY1:"+jsarr1.count();//<<"YY2:"<<jsarr2.count()<<"YY3:"<<jsarr1.count<<endl;
+
     }
 
     root.insert ("tubeInData",tubeInData);
     root.insert ("tubeOutData",tubeOutData);
-    if(existCot){
-        root.insert ("tubeCotData",tubeCotData);
-        cotdb.close();
-    }else {
-        root.insert("tubeCotData","null");
-    }
-    
+    root.insert("tubeCotData",tubeCotData);
+    root.insert("tubeCotData2",tubeCotData2);
+    root.insert("tubeDiagnoseCotData",tubeDiagnoseCotData);
 
 
     //关闭数据库
     db.close();
 
     //test
-    qDebug()<<"LLL:"<<QString(QJsonDocument(root).toJson());
+/*
+ *     qDebug()<<"LLL:"<<QString(QJsonDocument(root).toJson());
+    QFile f("C:\\Users\\sky\\Desktop\\e\\look.txt");
+    if(f.open(QIODevice::ReadWrite)){
+        qDebug()<<"文件打开成功";
+        QTextStream w(&f);
+        w<<QString(QJsonDocument(root).toJson());
+        w.flush();
+        f.close();
+    }else {
+        qDebug()<<f.errorString();
+    }
+*/
 
+    //qDebug()<<"LLL:"<<QString(QJsonDocument(root).toJson());
+    //qDebug()<<QString(QJsonDocument(root).toJson());
     return root;
 
     //    //处理数据
@@ -677,6 +1489,63 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
     //    mdeal_with(&tube_out_show_datas);
 
 }
+
+QJsonObject MysqlServer::diagnoseAccessPressureData(int forunceNum, QString date)
+{
+
+    QJsonObject obj;
+    QString from_time;
+    QString to_time;
+
+    int day = date.split("-")[2].toInt();//获取日
+
+    //判断改日是在前半个月，还是在后半个月
+    if(day >=1 && day <= 15){
+        from_time = date.split("-")[0] + "-" + date.split("-")[1] + "-" + "01";
+        to_time = date.split("-")[0] + "-" + date.split("-")[1] + "-" + "15";
+    }else if(day >= 16 && day <= 31){
+        from_time = date.split("-")[0] + "-" + date.split("-")[1] + "-" + "16";
+        to_time = date.split("-")[0] + "-" + date.split("-")[1] + "-" + "31";
+    }else{
+        obj.insert("error","日期格式错误");
+        return obj;
+    }
+
+    //创建
+    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schema");
+    db.setUserName("root");
+    db.setPassword("sky");
+
+    //链接数据库
+    if(db.open()){
+        qDebug()<<"database is established!";
+    }
+    else{
+        qDebug()<<"faled to connect to database";
+    }
+
+    //获取数据
+    QSqlQuery query;
+    //select * from schema.venturi_pressures where FN = '5' and  time in (select max(time) from schema.venturi_pressures where FN = '5' and time >= '2017-09-01' and time <= '2017-09-15');
+    QString str = "SELECT value1,value2,value3,value4,time FROM schema.venturi_pressures where FN='"+
+            QString::number(forunceNum) +"' and time in (select max(time) from schema.venturi_pressures where FN = '"+
+            QString::number(forunceNum)+"' and time >= '"+from_time+"' and time <= '"+to_time+"')";
+    //qDebug()<<str;
+
+    query.exec(str);
+    while(query.next()){
+        obj.insert("value1",query.value("value1").toInt());
+        obj.insert("value2",query.value("value2").toInt());
+        obj.insert("value3",query.value("value3").toInt());
+        obj.insert("value4",query.value("value4").toInt());
+        obj.insert("time",query.value("time").toDateTime().toString("yyyy/MM/dd hh:mm:ss"));
+    }
+
+    return obj;
+}
+
 
 //返回当前用户对象
 QString MysqlServer::currentUser()
@@ -689,12 +1558,54 @@ int MysqlServer::currentUserAccess()
     return m_access;
 }
 
+//获取数据库数据最新时间
+QDateTime MysqlServer::access_tube_newest_time()
+{
+    //创建
+    QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schema");
+    db.setUserName("root");
+    db.setPassword("sky");
+
+    //链接数据库
+    if(db.open())
+        qDebug()<<"database is established!";
+    else
+        qDebug()<<"faled to connect to database";
+
+    //获取最新入管数据的时间
+    QSqlQuery query;
+    query.exec("select max(Time) from schema.table_in group by TN");
+    query.next();
+    const QDateTime dt1 = query.value(0).toDateTime();
+
+    query.clear();
+
+    //获取最新出管数据的时间
+    query.exec("select max(Time) from schema.table_in group by TN");
+    query.next();
+    const QDateTime dt2 = query.value(0).toDateTime();
+
+    //对比
+    if(dt1.date().toString("yyMMdd") == dt2.date().toString("yyMMdd")){
+
+        return dt1;
+    }
+
+
+    return dt1;
+
+
+
+}
+
 
 //获取 入管 的最新温度
 QJsonArray MysqlServer::access_tube_in_temp(){
     //创建
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -746,7 +1657,7 @@ QJsonArray MysqlServer::access_tube_in_temp(){
 QJsonArray MysqlServer::access_tube_out_temp(){
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -798,14 +1709,14 @@ QJsonArray MysqlServer::access_tube_out_temp(){
 //转换成单独CotServer
 QJsonArray MysqlServer::access_tube_cot_temp(){
     //链接石油厂数据
-    QSqlDatabase db=QSqlDatabase::addDatabase("QODBC");
+    QSqlDatabase db=QSqlDatabase::addDatabase(e_dbtype);
     //json 数据
     QJsonArray jsarr;
 
     //链接石油厂数据库
-    db.setHostName("10.112.200.22");
-    db.setDatabaseName("History");
-    db.setPort(10014);
+    db.setHostName(e_ip);
+    db.setDatabaseName(e_dbname);
+    db.setPort(e_dbport);
     if(db.open()){
 
         qDebug()<<"remote database is established!";
@@ -888,7 +1799,7 @@ QJsonArray MysqlServer::pressureData(int forunceNum,int tubeNum,QDateTime from_D
     /**********************************查询本机的数据库**********************************/
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -937,10 +1848,10 @@ QJsonArray MysqlServer::pressureData(int forunceNum,int tubeNum,QDateTime from_D
     return pressureData;
 }
 //指定导出路径并导出excel(带COT版)
-bool MysqlServer::exportExcel1()      //手动导出excel
+bool MysqlServer::exportExcel1(QString fn)      //手动导出excel
 {
 
-    QString fileName=QDateTime::currentDateTime ().toString ("yyyy-MM-dd hh_mm_ss");
+    QString fileName="T " + QDateTime::currentDateTime ().toString ("yyyy-MM-dd hh_mm ") + fn;
     QString format=".xlsx";
     QString filePath=QDir::root ().path ();
     QString creatPath=QFileDialog::getSaveFileName(0,tr("Export Excel"),filePath+"/"+fileName+format,tr("Microsoft Office 2003 (*.xlsx)"));//获取保存路径
@@ -1255,7 +2166,7 @@ void MysqlServer::exportExcel ( QString creatPath){
                 header->setProperty("Bold", true);//设置黑体
 
                 header = worksheet->querySubObject("Cells(int,int)", 2,6*j-1);//获取单元格
-                headerStr = "Cot时间";
+                headerStr = "COT时间";
                 header->dynamicCall("Value", headerStr);//设置单元格的值
                 header->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
                 header = header->querySubObject("Font");
@@ -1344,6 +2255,200 @@ void MysqlServer::exportExcel ( QString creatPath){
         dumpDataOver ();
     });//end thread
 }
+
+//sky 导出压力
+bool MysqlServer::exportPressureExcel(QString fn, QStringList datetimes, QStringList value1s, QStringList value2s, QStringList value3s, QStringList value4s)
+{
+    QString fileName= "P " + QDateTime::currentDateTime ().toString ("yyyy-MM-dd hh_mm ") + fn;
+    QString format=".xlsx";
+    QString filePath=QDir::root ().path ();
+    QString creatPath=QFileDialog::getSaveFileName(0,tr("Export Excel"),filePath+"/"+fileName+format,tr("Microsoft Office 2003 (*.xlsx)"));//获取保存路径
+    //调用高级线程 (其中使用了lambda表达式“[]{...}”作为匿名函数使用)
+    QtConcurrent::run([this,fn,creatPath,datetimes,value1s,value2s,value3s,value4s]{
+        HRESULT r = OleInitialize(0);
+        if (r != S_OK && r != S_FALSE)
+        {
+            qWarning("Qt:初始化Ole失败（error %x）",(unsigned int)r);
+        }
+        qDebug()<<"bool excell 1"<<endl;
+        if(!creatPath.isEmpty()){
+            qDebug()<<"bool excell 1.1"<<endl;
+            excel = new QAxObject();
+            qDebug()<<"bool excell 1.2"<<endl;
+            excel->setControl("Excel.Application");
+            qDebug()<<"bool excell 1.3"<<endl;
+            excel->dynamicCall("SetVisible (bool Visible)","false");//不显示窗体
+            qDebug()<<"bool excell 1.4"<<endl;
+            excel->setProperty("DisplayAlerts", false);//不显示任何警告信息。如果为true那么在关闭是会出现类似“文件已修改，是否保存”的提示
+            workbooks = excel->querySubObject("WorkBooks");//获取工作簿集合
+            workbooks->dynamicCall("Add");//新建一个工作簿
+            workbook = excel->querySubObject("ActiveWorkBook");//获取当前工作簿
+            worksheets = workbook->querySubObject("Sheets");//获取工作表集合
+            worksheets->querySubObject("Add()");
+            QAxObject * a = worksheets->querySubObject("Item(int)", 1);
+            a->setProperty("Name","exportExcel");
+
+            worksheet = worksheets->querySubObject("Item(const QString&)", "exportExcel");//获取工作表集合的工作表名
+
+            //写表头，第一行
+            QAxObject *header;
+            QString  headerStr;
+            qDebug()<<"bool excell 2"<<endl;
+            header = worksheet->querySubObject("Cells(int,int)", 1,1);//获取单元格
+            headerStr = " " + fn + "号炉";
+            header->dynamicCall("Value", headerStr);//设置单元格的值
+            header = header->querySubObject("Font");
+            header->setProperty("Bold", true);//设置黑体
+
+            QStringList AtoZ;
+            AtoZ<<""<<"A"<<"B"<<"C"<<"D"<<"E"<<"F"<<"G"<<"H"<<"I"<<"J"<<"K"<<"L"<<"M"<<"N"<<"O"<<"P"<<"Q"<<"R"<<"S"<<"T"<<"U"<<"V"<<"W"<<"X"<<"Y"<<"Z";
+            QStringList AAZZ;
+            AAZZ<<""<<"A"<<"B"<<"C"<<"D"<<"E"<<"F"<<"G"<<"H"<<"I"<<"J"<<"K"<<"L"<<"M"<<"N"<<"O"<<"P"<<"Q"<<"R"<<"S"<<"T"<<"U"<<"V"<<"W"<<"X"<<"Y"<<"Z";
+            qDebug()<<"bool excell 3"<<endl;
+            for ( int i = 1 ; i < 27 ; i++)
+            {
+                for(int j = 1 ; j <27 ;j++)
+                {
+                    AAZZ.append(AtoZ.at(i)+AtoZ.at(j));
+                }
+            }
+            //左右居中 合并单元格
+            qDebug()<<"bool excell 4"<<endl;
+            for ( int j = 1 ; j < 289 ; j++)
+            {
+                QString cell;
+                cell.append(AAZZ.at(j));
+                cell.append(QString::number(1));
+                cell.append(":");
+                cell.append(AAZZ.at(j+5));
+                cell.append(QString::number(1));
+                QAxObject *range = worksheet->querySubObject("Range(const QString&)", cell);
+                //                range->setProperty("VerticalAlignment", -4108);//xlCenter上下居中
+                range->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                range->setProperty("WrapText", true);
+                range->setProperty("MergeCells", true);
+                j = j+5;
+            }
+            //表头
+            qDebug()<<"bool excell 5"<<endl;
+            for ( int j = 1 ; j < 2 ; j++)
+            {
+                header = worksheet->querySubObject("Cells(int,int)", 2,6*j-5);//获取单元格
+                headerStr = "时间";
+                header->dynamicCall("Value", headerStr);//设置单元格的值
+                header->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                header = header->querySubObject("Font");
+                header->setProperty("Bold", true);//设置黑体
+                QString columnsStr;
+                columnsStr = AAZZ.at(6*j-5) + ":"+AAZZ.at(6*j-5);
+                header= worksheet->querySubObject("Columns(const QString&)",columnsStr );
+                header->setProperty("ColumnWidth", 27);//设置列宽
+
+                header = worksheet->querySubObject("Cells(int,int)", 2,6*j-4);//获取单元格
+                headerStr = "文丘里数值1";
+                header->dynamicCall("Value", headerStr);//设置单元格的值
+                header->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                header = header->querySubObject("Font");
+                header->setProperty("Bold", true);//设置黑体
+                columnsStr = AAZZ.at(6*j-4) + ":"+AAZZ.at(6*j-4);
+                header= worksheet->querySubObject("Columns(const QString&)",columnsStr );
+                header->setProperty("ColumnWidth", 27);//设置列宽
+
+                header = worksheet->querySubObject("Cells(int,int)", 2,6*j-3);//获取单元格
+                headerStr = "文丘里数值2";
+                header->dynamicCall("Value", headerStr);//设置单元格的值
+                header->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                header = header->querySubObject("Font");
+                header->setProperty("Bold", true);//设置黑体
+                columnsStr = AAZZ.at(6*j-3) + ":"+AAZZ.at(6*j-3);
+                header= worksheet->querySubObject("Columns(const QString&)",columnsStr );
+                header->setProperty("ColumnWidth", 27);//设置列宽
+
+                header = worksheet->querySubObject("Cells(int,int)", 2,6*j-2);//获取单元格
+                headerStr = "文丘里数值3";
+                header->dynamicCall("Value", headerStr);//设置单元格的值
+                header->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                header = header->querySubObject("Font");
+                header->setProperty("Bold", true);//设置黑体
+                columnsStr = AAZZ.at(6*j-2) + ":"+AAZZ.at(6*j-2);
+                header= worksheet->querySubObject("Columns(const QString&)",columnsStr );
+                header->setProperty("ColumnWidth", 27);//设置列宽
+
+                header = worksheet->querySubObject("Cells(int,int)", 2,6*j-1);//获取单元格
+                headerStr = "文丘里数值4";
+                header->dynamicCall("Value", headerStr);//设置单元格的值
+                header->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                header = header->querySubObject("Font");
+                header->setProperty("Bold", true);//设置黑体
+                columnsStr = AAZZ.at(6*j-1) + ":"+AAZZ.at(6*j-1);
+                header= worksheet->querySubObject("Columns(const QString&)",columnsStr );
+                header->setProperty("ColumnWidth", 27);//设置列宽
+            }
+            //左右居中
+            //写数据
+            QAxObject *datas;
+            QString  datasStr;
+            qDebug()<<"bool excell 7"<<endl;
+            for ( int i  = 1 ; i < 2 ; i++ )
+            {
+                //时间
+                for ( int a = 0; a < datetimes.count(); a++)
+                {
+
+                    //datasStr = ""+datetimes.at(a);//.toString(Qt::ISODate);
+                    datas = worksheet->querySubObject("Cells(int,int)", a+3,i*6-5);//获取单元格
+                    datas->dynamicCall("Value", datetimes.at(a));//设置单元格的值
+                    datas->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                }
+
+                for ( int a = 0; a < value1s.count(); a++)
+                {
+
+                    //datasStr = ""+value1s.at(a);//.toString(Qt::ISODate);
+                    datas = worksheet->querySubObject("Cells(int,int)", a+3,i*6-4);//获取单元格
+                    datas->dynamicCall("Value", value1s.at(a));//设置单元格的值
+                    datas->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                }
+
+                for ( int a = 0; a < value2s.count(); a++)
+                {
+
+                    //datasStr = ""+value2s.at(a);//.toString(Qt::ISODate);
+                    datas = worksheet->querySubObject("Cells(int,int)", a+3,i*6-3);//获取单元格
+                    datas->dynamicCall("Value", value2s.at(a));//设置单元格的值
+                    datas->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                }
+
+                for ( int a = 0; a < value3s.count(); a++)
+                {
+
+                    //datasStr = ""+value3s.at(a);//.toString(Qt::ISODate);
+                    datas = worksheet->querySubObject("Cells(int,int)", a+3,i*6-2);//获取单元格
+                    datas->dynamicCall("Value", value3s.at(a));//设置单元格的值
+                    datas->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                }
+
+                for ( int a = 0; a < value4s.count(); a++)
+                {
+
+                    //datasStr = ""+value4s.at(a);//.toString(Qt::ISODate);
+                    datas = worksheet->querySubObject("Cells(int,int)", a+3,i*6-1);//获取单元格
+                    datas->dynamicCall("Value", value4s.at(a));//设置单元格的值
+                    datas->setProperty("HorizontalAlignment", -4108);//xlCenter左右居中
+                }
+            }
+
+            //保存并关闭
+            qDebug()<<"bool excell 10"<<endl;
+            workbook->dynamicCall("SaveAs(const QString&)",QDir::toNativeSeparators(creatPath));//保存至creatPath，注意一定要用QDir::toNativeSeparators将路径中的"/"转换为"\"，不然一定保存不了。
+            workbook->dynamicCall("Close()");//关闭工作簿
+        }
+
+        OleUninitialize();
+    });//end thread
+    return true;
+
+}
 //设置备份路径
 void MysqlServer::setDumpPath (QString path){
     this->mdumpPath=path;
@@ -1354,7 +2459,7 @@ bool MysqlServer::login(QString userName, QString pwd, QString access)
 {
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -1394,7 +2499,7 @@ QJsonArray MysqlServer::usersList()
 {
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -1423,6 +2528,146 @@ QJsonArray MysqlServer::usersList()
     return users;
 }
 
+QJsonArray MysqlServer::pressdataList(const QString& fn ) //获取最近十次的文丘里数据
+{
+    //创建
+    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schema");
+    db.setUserName("root");
+    db.setPassword("sky");
+
+    //链接数据库
+    if(db.open()){
+        qDebug()<<"database is established!";
+    }
+    else{
+        qDebug()<<"faled to connect to database";
+    }
+
+    //获取数据
+    int count = 0;
+    QSqlQuery query;
+    QString str = "SELECT value1,value2,value3,value4,time FROM schema.venturi_pressures where FN='"+fn +"' order by time DESC";
+    QJsonArray pressures;
+    query.exec(str);
+    while(query.next()){
+        if (count >= 10 ) break; //前十条
+        QJsonObject pressure;
+        pressure.insert("value1",query.value("value1").toString());
+        pressure.insert("value2",query.value("value2").toString());
+        pressure.insert("value3",query.value("value3").toString());
+        pressure.insert("value4",query.value("value4").toString());
+        pressure.insert("time",query.value("time").toDateTime().toString("yyyy/MM/dd hh:mm:ss"));
+        pressures.append(pressure);
+        count ++;
+    }
+    return pressures;
+}
+
+bool MysqlServer::addPressure(const QString& fn,const QString &time, const QString &value1, const QString &value2, const QString &value3, const QString &value4)
+{
+    qDebug()<<"gagag"<<time;
+    //创建
+    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schema");
+    db.setUserName("root");
+    db.setPassword("sky");
+
+    //链接数据库
+    if(db.open()){
+        qDebug()<<"database is established!";
+    }
+    else{
+        qDebug()<<"faled to connect to database";
+    }
+    QSqlQuery query;
+
+    QString str = "INSERT INTO `schema`.`venturi_pressures` (`FN`,`value1`,`value2`,`value3`,`value4`,`time`) VALUES ('"+fn+"','"+value1+"','"+value2+"','"+value3+"','"+value4+"','"+time+"')";
+    qDebug()<<"insert venturi_value"<<query.exec(str);
+
+    db.close();
+    return true;
+}
+
+void MysqlServer::updatePressData(QString forunceNum, QStringList old_values, QStringList new_values, QString old_time, QString new_time)
+{
+    //创建
+    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schema");
+    db.setUserName("root");
+    db.setPassword("sky");
+
+    //链接数据库
+    if(db.open()){
+        qDebug()<<"database is established!";
+    }
+    else{
+        qDebug()<<"faled to connect to database";
+    }
+    QSqlQuery query;
+
+    QString str = "UPDATE `schema`.`venturi_pressures` SET `value1` = " + new_values.at(0) +","+
+            " `value2` =  " + new_values.at(1) + "," +
+            " `value3` = " + new_values.at(2) + "," +
+            " `value4` = " + new_values.at(3) + ","
+            " `time` = '" + new_time +
+            "' where `FN` = " + forunceNum +
+            " and `time` = '" + old_time + "'";
+
+    qDebug()<<str;
+
+    qDebug()<<"update venturi_value"<<query.exec(str);
+
+    db.close();
+
+
+}
+
+QJsonArray MysqlServer::access_pressdata(QString forunceNum, QString from_time, QString to_time)
+{
+    //创建
+    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schema");
+    db.setUserName("root");
+    db.setPassword("sky");
+
+    //链接数据库
+    if(db.open()){
+        qDebug()<<"database is established!";
+    }
+    else{
+        qDebug()<<"faled to connect to database";
+    }
+
+    //获取数据
+    QSqlQuery query;
+    QString str = "SELECT * FROM schema.venturi_pressures where FN='"+forunceNum +
+            "' and time >= '" + from_time.split(" ").at(0) +
+            "' and time <= '" + to_time.split(" ").at(0) + "'";
+
+    qDebug()<<str;
+
+    QJsonArray pressures;
+
+    query.exec(str);
+    while(query.next()){
+        QJsonObject pressure;
+        pressure.insert("value1",query.value("value1").toString());
+        pressure.insert("value2",query.value("value2").toString());
+        pressure.insert("value3",query.value("value3").toString());
+        pressure.insert("value4",query.value("value4").toString());
+        pressure.insert("time",query.value("time").toDateTime().toString("yyyy/MM/dd hh:mm:ss"));
+        pressures.append(pressure);
+    }
+
+    return pressures;
+
+}
+
 bool MysqlServer::addUser(const QString &userName, const QString &pwd, const QString &access)
 {
 
@@ -1431,7 +2676,7 @@ bool MysqlServer::addUser(const QString &userName, const QString &pwd, const QSt
 
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -1463,7 +2708,7 @@ bool MysqlServer::removeUser(const QString &userName)
 
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -1491,7 +2736,7 @@ bool MysqlServer::updateUser(const QString &userName, const QString &pwd, const 
 
     //创建
     QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");
@@ -1512,11 +2757,37 @@ bool MysqlServer::updateUser(const QString &userName, const QString &pwd, const 
 
 }
 
+bool MysqlServer::verifyAdminPwd(QString pwd)
+{
+    //创建
+    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    db.setHostName("localhost");
+    db.setDatabaseName("schema");
+    db.setUserName("root");
+    db.setPassword("sky");
+
+    //链接数据库
+    if(db.open()){
+        qDebug()<<"database is established!";
+    }
+    else{
+        qDebug()<<"faled to connect to database";
+    }
+    QSqlQuery query;
+    QString str = "select * from users where user_name = '"+m_currentUser + "' and user_pwd = '"+pwd+"'";
+    query.exec(str);
+    if(query.next()){
+        return true;
+    }else{
+        return false;
+    }
+}
+
 bool MysqlServer::pushPressureData(const int& fn, const QJsonArray &data, const QDateTime &date)
 {
     //创建
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("192.168.0.167");
+    db.setHostName("localhost");
     db.setDatabaseName("schema");
     db.setUserName("root");
     db.setPassword("sky");

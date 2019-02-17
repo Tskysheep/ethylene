@@ -66,7 +66,9 @@ Item {
 
                 sdata.tubeCOTTemp = -1;
                 sdata.tubeCOTTime = "无cot数据"
-                if(!result.tubeCotData){
+
+                //sky 19/02/11 将 if(！result.tubeCotData) 改为 if(result.tubeCotData)
+                if(result.tubeCotData){
                     sdata.tubeCOTTemp = result.tubeCotData[tubeNum].data[b].temp;
                     sdata.tubeCOTTime = result.tubeCotData[tubeNum].data[b].time;
                 }
@@ -84,6 +86,15 @@ Item {
         //根据查询到的数据的数量，设定显示的高度
         datalistcontent.height = (searchDatas[0].datasInfo.length+1)*20 + 25 + 180
 
+    }
+
+    Connections{
+        target: server
+        onAllTubeShowDataGot: {
+            result = jsonResult
+            console.log(JSON.stringify(result))
+            refresh()
+        }
     }
 
 
@@ -109,9 +120,10 @@ Item {
                     id:searchbnt
                     imgSrc: "qrc:/imgs/icons/search_small.png"
                     text: "查询"
-                    bgColor: "#41ccdc"
+                    bgColor: "#557EE4"
                     width: 120
                     height: 35
+                    textSize: 20
                     onBngClicked: {
                         //组装查询条件,进行查询
                         searchDatas = [];//sky:清空全局变量searchDatas ???
@@ -125,22 +137,24 @@ Item {
                         var fromDate = new Date(fromDateStr);
                         var toDate = new Date(toDateStr);
 
-                        result = server.all_tube_show( currentFuranceNum, fromDate, toDate);//sky:mysqlserver.cpp 668行返回一个QJsonObject 对象 root
+//                        result = server.all_tube_show( currentFuranceNum, fromDate, toDate);//sky:mysqlserver.cpp 668行返回一个QJsonObject 对象 root
+                        server.all_tube_show( currentFuranceNum, fromDate, toDate);
+//                        console.log("gg");
+//                        console.log(result.toString());
 
-                        console.log("gg");
-                        console.log(result.toString());
-
-                        refresh();
+//                        refresh();
                     }
                 }
                 RoundIconButton{
                     id:exportbnt
                     imgSrc: "qrc:/imgs/icons/output.png"
                     text: "导出数据"
+                    bgColor: "#344750"
                     width: 120
                     height: 35
+                    textSize: 20
                     onBngClicked: {
-                        if(server.exportExcel1()) {
+                        if(server.exportExcel1(foranceNumComboBox.currentText)) {
                             console.log("哇咔咔，到底是谁先呢？？");
                         }
                     }

@@ -78,23 +78,79 @@ void SerialPortManager::readingDatas()
     //qDebug()<<"==="<<this->seriaPort.bytesAvailable()<<endl;
     //sky：修改 2018.12.07
     //if(this->seriaPort.bytesAvailable()>0){
-    if(datasMap.isEmpty()||datasMap.size() < 8){
+    if(datasMap.isEmpty()||datasMap.size() < 9){
         //sky：修改 2018.12.20
         //bufferDatas+=seriaPort.readAll().data();
 //-------------------------sky 接受逻辑---------------
-        if(this->seriaPort.bytesAvailable() > 0){ //当有数据时才执行一下操作，已节省时间
+
+        //数据格式 \r\n<20181219-04:04:04-S(5)W(7)>
+        //        \r\n??5#1,1034,1013,1011,990,1015,987,1021,1000,1024,1001,999,991,12092??   \r\n 占两个字符
+        if(this->seriaPort.bytesAvailable() > 0){ //当有数据时才执行一下操作，以节省时间
             if(datasMap.isEmpty()){
                QString tmpstr = seriaPort.readAll().data();
                qDebug()<<tmpstr;
-               QStringList strls = tmpstr.split(",");
-               int key = strls[0].section("",5,5).toInt();//以窗口号作为字典的键值
-               datasMap.insert(key,tmpstr);//因为当前字典为空，将数据直接插入
+
+               if(tmpstr.contains("@Data_send_finish!")){
+                   qDebug()<<"data_receive_failure";
+                   if(datasMap.count() < 9) {
+                       qDebug()<<"data count:"<<datasMap.count();
+                       writeDates("Data_Receive_Failure!");
+                   }else {
+                       qDebug()<<"receive over"<<bufferDatas<<endl;
+                       //将数据整合
+                       for(int i = 0;i <= datasMap.size();i++){
+                           bufferDatas += datasMap.value(i);
+                       }
+                       qDebug()<<bufferDatas;
+                       //读取完毕信号
+                       readingFinish();
+                       //数据变化信号
+                       revDatasChanged();
+                       //接收完毕，标记修改为false
+                       isreadingDatas=false;
+                   }
+               }
+               //包含<  ， > 的说明这是时间数据，直接差入到0
+               if(tmpstr.contains("<") && tmpstr.contains(">")){
+                   datasMap.insert(0,tmpstr);
+                   return;
+               }
 
             }else{
+
                 QString tmpstr = seriaPort.readAll().data();
                 qDebug()<<tmpstr;
-                QStringList strls = tmpstr.split(",");
-                int key = strls[0].section("",5,5).toInt();
+
+                if(tmpstr.contains("@Data_send_finish!")){
+                    qDebug()<<"data_receive_failure";
+                    if(datasMap.count() < 9) {
+                        qDebug()<<"data count:"<<datasMap.count();
+                        writeDates("Data_Receive_Failure!");
+                    }else {
+                        qDebug()<<"receive over"<<bufferDatas<<endl;
+                        //将数据整合
+                        for(int i = 0;i <= datasMap.size();i++){
+                            bufferDatas += datasMap.value(i);
+                        }
+                        qDebug()<<bufferDatas;
+                        //读取完毕信号
+                        readingFinish();
+                        //数据变化信号
+                        revDatasChanged();
+                        //接收完毕，标记修改为false
+                        isreadingDatas=false;
+                    }
+                }
+
+
+                int key;
+                if(tmpstr.split(",").count() == 14){
+                    QString tmpstr2 = tmpstr.split(",").at(0);
+                    key = QString(tmpstr2.at(6)).toInt();//以窗口号作为字典的键值
+                }else{
+                    return;
+                }
+
                 if(datasMap.contains(key)){//判断新接收的数据是否已经在字典中存在
                     if(datasMap.value(key) == tmpstr){//如果新接收的数据和字典中的一样，不作处理
 
@@ -118,9 +174,10 @@ void SerialPortManager::readingDatas()
     }else{
         qDebug()<<"receive over"<<bufferDatas<<endl;
         //将数据整合
-        for(int i = 1;i <= datasMap.size();i++){
+        for(int i = 0;i <= datasMap.size();i++){
             bufferDatas += datasMap.value(i);
         }
+        qDebug()<<bufferDatas;
         //读取完毕信号
         readingFinish();
         //数据变化信号

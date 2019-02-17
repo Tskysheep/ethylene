@@ -2,6 +2,8 @@
 #define GLOBAL_H
 #include "./sql/mysqlserver.h"
 #include "./serial/serialportmanager.h"
+#include "./utils.h"
+
 //打开登录界面
 void openLoginWindow();
 //打开管理界面

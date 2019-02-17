@@ -29,6 +29,8 @@
 #include <windows.h>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonParseError>
 #include <QtConcurrent>
 #include <QSettings>
 
@@ -88,12 +90,17 @@ public:
     Q_INVOKABLE QJsonArray pressureData(int forunceNum,int tubeNum,QDateTime from_DateTime,QDateTime to_DateTime);
     //全管查询 根据炉号时间为条件以JSON格式返回所有管的数据
     Q_INVOKABLE QJsonObject all_tube_show(int forunceNum,QDateTime from_DateTime, QDateTime to_DateTime);
+    //sky add:结焦诊断相关数据获取
+    Q_INVOKABLE QJsonObject diagnoseData(int forunceNum,QStringList column_names ,QDateTime frome_DateTime,QDateTime to_DateTime);
+    Q_INVOKABLE QJsonObject diagnoseAccessPressureData(int forunceNum,QString date);
     Q_PROPERTY(QString currentUser READ currentUser NOTIFY currentUserChanged)
     //返回当前用户对象
     QString currentUser();
     //返回当前用户对象权限
     Q_PROPERTY(int currentUserAccess READ currentUserAccess NOTIFY currentUserAccessChanged)
     int currentUserAccess();
+    //sky add 获取炉管数据的最新时间
+    Q_INVOKABLE QDateTime access_tube_newest_time();
     //获取最新的入管，出管，ＣＯＴ温度 以JSON数组的格式返回
     Q_INVOKABLE QJsonArray access_tube_in_temp();
     Q_INVOKABLE QJsonArray access_tube_out_temp();
@@ -102,7 +109,7 @@ public:
     Q_INVOKABLE void refresh_data(){
         this->access_tube_in_temp();
         this->access_tube_out_temp();
-//        this->access_tube_cot_temp();
+        this->access_tube_cot_temp();
     }
     //设置备份路径
     Q_INVOKABLE void setDumpPath(QString path);
@@ -115,6 +122,7 @@ public:
 
     //用户列表
     Q_INVOKABLE QJsonArray usersList();
+
 
     //添加用户
     Q_INVOKABLE bool addUser(const QString& userName,
@@ -129,6 +137,26 @@ public:
                                 const QString& pwd,
                                 const QString& access,
                                 const QString& userId);
+    Q_INVOKABLE bool verifyAdminPwd(QString pwd);
+
+    //sky 压力列表
+    Q_INVOKABLE QJsonArray pressdataList(const QString& fn);
+
+    //sky 添加压力
+    Q_INVOKABLE bool addPressure(const QString& fn,
+                                 const QString& time,
+                                 const QString& value1,
+                                 const QString& value2,
+                                 const QString& value3,
+                                 const QString& value4);
+    //sky 修改压力
+    Q_INVOKABLE void updatePressData(QString forunceNum,
+                                        QStringList old_values,
+                                        QStringList new_values,
+                                        QString old_time,
+                                        QString new_time);
+    //sky 查询压力
+    Q_INVOKABLE QJsonArray access_pressdata(QString forunceNum,QString from_time,QString to_time);
 
     //导入压强数据
     Q_INVOKABLE bool pushPressureData(const int &fn, const QJsonArray& data, const QDateTime& date);
@@ -154,10 +182,18 @@ signals:
     void currentUserChanged();
 
     void dumpDataOver();
+    void allTubeShowDataGot(const QJsonObject& jsonResult);
 public slots:
     //导出EXCEl 指定导出路径并导出excel
-    bool exportExcel1();      //手动导出excel
+    bool exportExcel1(QString fn);      //手动导出excel
     void exportExcel(QString creatPath);
+    //sky 导出压力
+    bool exportPressureExcel(QString fn,
+                             QStringList datetimes,
+                             QStringList value1s,
+                             QStringList value2s,
+                             QStringList value3s,
+                             QStringList value4s);
 
     void onDumpDataOver();
 private:
@@ -172,10 +208,18 @@ private:
     QList<datas_time> tube_in_full_search_datas[48];
     QList<datas_time> tube_out_full_search_datas[48];
     QList<datas_time> tube_cot_full_search_datas[48];
+    QList<datas_time> tube_cot_full_search_datas2[48];
+    QList<datas_time> diagnose_tube_cot_full_search_datas[48];
     //备份数据目录
     QString mdumpPath;
     QSettings msettings;
     int m_access = 0;
     QString m_currentUser;
+
+    //sky:乙烯厂数据库连接相关信息
+    QString e_dbtype;
+    QString e_ip;
+    QString e_dbname;
+    int e_dbport;
 };
 #endif // MYSQLSERVER_H

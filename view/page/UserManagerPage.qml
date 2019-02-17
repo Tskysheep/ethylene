@@ -11,7 +11,7 @@ Item {
         userModel.clear();
         var users = server.usersList();
 
-        for(var a = 0; users.length; a++){
+        for(var a = 0; a < users.length; a++){
             console.log(users[a].userAccess);
             userModel.append({
                        "userName":users[a].userName,

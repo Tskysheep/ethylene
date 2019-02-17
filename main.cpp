@@ -18,6 +18,8 @@ int main(int argc, char *argv[])
 
 //    server.load(QUrl(QStringLiteral("qrc:/login.qml")));
 
+//    app.setFont();
+
     openLoginWindow();
 
     return app.exec();

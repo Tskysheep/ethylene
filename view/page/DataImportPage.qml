@@ -20,16 +20,26 @@ Item {
     property int currentPortIndex:0//串口索引值
     property bool readyReciveData:false//串口接收状态
     property var requestPushData: []
+    signal closeGlobalPort();//关闭全局监听串口
+    signal openGlobalPort();//关闭全局监听串口
     //sky:炉号数组
     property var furnaces:[
         "H110","H111","H112","H113","H114","H115","H116","H117","H118","H119","H120"
     ]
     property var requestData;
+    property string newest_date: ""
 
     property int data_resend_time: 0;
     property alias topBar: topBar
     //更新3管数据
     function refresh(){
+        //获取最新数据的时间
+        var date = server.access_tube_newest_time();
+        var date2 = new Date(date.toString())
+        newest_date = date2.getFullYear() + "/" + (date2.getMonth()+1) + "/" + date2.getDate();
+        console.log(" 最新时间：",newest_date)
+
+
         var st=new Date().getTime();
         requestData = {};
         //sky:在global中为server导出对像：engine->rootContext()->setContextProperty("server",MysqlServer::instance());
@@ -77,7 +87,7 @@ Item {
             console.log(a,"  ",value[a].length,"  ",value[a]);
         }
         console.log("kk:",value.length,value.toString());
-        if(value.length%8===0&&value.length>0){
+        if(value.length%9===0&&value.length>0){
             return true;
         }
         else{
@@ -103,7 +113,7 @@ Item {
     //初始化显示用的3管数据
     Component.onCompleted: {
         refresh();
-        tubeInLine.clear();//？？？sky:可能是链表
+        tubeInLine.clear();
         tubeOutLine.clear();
         tubeCOTLine.clear();
 
@@ -268,11 +278,18 @@ Item {
                             anchors.centerIn: parent
                             antialiasing: true
                             id:linearChart
+                            title: "数据导入时间：" + newest_date
+                            titleFont.family: "微软雅黑"
+                            titleFont.pixelSize: 20
+
 
                             ValueAxis {
                                 id: axisX
                                 min: 1
                                 max: 12
+                                titleText: "管号"
+                                titleFont.family: "微软雅黑"
+                                titleFont.pixelSize: 20
                                 tickCount: 12
                                 labelFormat: "%.0f"
                             }
@@ -281,6 +298,9 @@ Item {
                                 id: axisY
                                 min: 700
                                 max: 1100
+                                titleText: "温度/℃"
+                                titleFont.family: "微软雅黑"
+                                titleFont.pixelSize: 20
                                 labelFormat: "%.0f"
                             }
                             AreaSeries {
@@ -295,6 +315,14 @@ Item {
                                     id:tubeOutLine
                                 }
                                 lowerSeries: tubeInLine
+                                //sky：显示每个点的数值
+                                pointLabelsVisible: true
+                                pointLabelsClipping : false
+                                pointLabelsColor:"#66ff5645"
+                                pointLabelsFont.pixelSize: 23
+                                pointLabelsFont.family: "微软雅黑"
+                                pointLabelsFormat: "@yPoint"
+
                             }
                             AreaSeries {
                                 id:tubeInSeries
@@ -308,6 +336,14 @@ Item {
                                     id:tubeInLine
                                 }
                                 lowerSeries: tubeCOTLine
+                                //sky：显示每个点的数值
+                                pointLabelsVisible: true
+                                pointLabelsClipping : false
+                                pointLabelsColor:"#66ff5645"
+                                pointLabelsFont.pixelSize: 23
+                                pointLabelsFont.family: "微软雅黑"
+                                pointLabelsFormat: "@yPoint"
+
                             }
                             AreaSeries {
                                 id:tubeCOTSeries
@@ -320,6 +356,13 @@ Item {
                                 upperSeries: LineSeries {
                                     id:tubeCOTLine
                                 }
+
+                                //sky：显示每个点的数值
+                                pointLabelsVisible: true
+                                pointLabelsClipping : false
+                                pointLabelsColor:"#660077ff"
+                                pointLabelsFont.family: "微软雅黑"
+                                pointLabelsFont.pixelSize: 23
                             }
 
                         }
@@ -337,32 +380,56 @@ Item {
                             anchors.centerIn: parent
                             antialiasing: true
                             id:barChart
+                            title: "数据导入时间：" + newest_date
+                            titleFont.family: "微软雅黑"
+                            titleFont.pixelSize: 20
                             ValueAxis {
                                 id: barAxisY
                                 min: 700
                                 max: 1100
+                                titleText: "温度/℃"
+                                titleFont.family: "微软雅黑"
+                                titleFont.pixelSize: 20
                                 labelFormat: "%.0f"
                             }
                             BarSeries {
                                 id: bars
+                                //sky 显示每个条形图的数值
+                                labelsVisible: true
+                                labelsPosition: AbstractBarSeries.LabelsOutsideEnd
+
                                 axisX: BarCategoryAxis {
+                                    titleText: "管号"
+                                    titleFont.family: "微软雅黑"
+                                    titleFont.pixelSize: 20
+
                                     categories: ["1", "2", "3", "4", "5", "6","7","8","9","10","11","12" ]
                                 }
                                 axisY: barAxisY
 
                                 BarSet {
                                     id:tubeOutBarSet
+                                    //sky 数值的字体颜色等
                                     label: "出管温度";
+                                    labelFont.family: "微软雅黑"
+                                    labelFont.pixelSize: 20
+                                    labelColor: "#209fdf"
 //                                    values: [966, 966,966, 966, 966, 966,966,966,966,966,966]
                                 }
                                 BarSet {
                                     id: tubeInBarSet
                                     label: "入管温度";
+                                    labelFont.family: "微软雅黑"
+                                    labelFont.pixelSize: 20
+                                    labelColor: "#99ca53"
 //                                    values: [888,888,888,888,888,888,888,888,888,888,888,888]
                                 }
                                 BarSet {
                                     id: tubeCOTBarSet
                                     label: "COT温度";
+                                    labelFont.family: "微软雅黑"
+                                    labelFont.pixelSize: 20
+                                    labelColor: "#F6A625"
 //                                    values: [855,855,855,855,855,855,855,855,855,855,855,855]
                                 }
                             }
@@ -380,7 +447,8 @@ Item {
                     model: 4
                     delegate: Text{
                         font.pixelSize: 20
-                        color: currentGroup === index?"#12eeff": "#666666"
+                        font.family: "微软雅黑"
+                        color: currentGroup === index?"#557EE4": "#000000"
                         text: "第"+Number(index+1)+"组"
                         MouseArea{
                             anchors.fill: parent
@@ -393,7 +461,7 @@ Item {
                             anchors.topMargin: 10
                             width: parent.width
                             height: 3
-                            color: "#12eeff"
+                            color: "#557EE4"
                             opacity: index === currentGroup?1:0
                             Behavior on opacity {
                                 PropertyAnimation{
@@ -424,14 +492,16 @@ Item {
                     height: 36
                 }
                 RoundIconButton{
-                    text: "导入新数据"
+                    text: "手工导入新数据"
                     imgSrc: "qrc:/imgs/icons/add.png"
                     width: 120
                     height: 36
+                    textSize: 13
                     onBngClicked: {
-                        messageText.text =readyReciveData?"   正在接收数据中，请用遥控器发送数据到zigbee接收器"
-                                                         :
-                                                           "  请选择zigbee接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦zigbee接收器是否正常安装驱动。如果不知道哪个串口对应zigbee接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应zigbee接收器的串口！或者在系统中查看串口。";
+                        global_port.closePort();
+                        messageText.text =readyReciveData?"   正在接收数据中，请用遥控器发送数据到Rola接收器"
+                                                         :"请确保Rola接收器准备就绪！\n然后点击“开始接收数据”按钮进行数据接收。"
+                                                           //"  请选择Rola接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦Rola接收器是否正常安装驱动。如果不知道哪个串口对应Rola接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应Rola接收器的串口！或者在系统中查看串口。";
                         data_resend_time=1;
                         dataImportDialog.open();
                     }
@@ -450,7 +520,7 @@ Item {
                 readyReciveData=false;
                 serialPortManager.closeSerialPort();
                 messageText.text ="上次数据传输失败5次以上,停止接受数据\n"
-                messageText.text +="  请选择zigbee接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦zigbee接收器是否正常安装驱动。如果不知道哪个串口对应zigbee接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应zigbee接收器的串口！或者在系统中查看串口。";
+                messageText.text +="请确保Rola接收器准备就绪！\n然后点击“开始接收数据”按钮进行数据接收。"//"  请选择Rola接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦Rola接收器是否正常安装驱动。如果不知道哪个串口对应Rola接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应Rola接收器的串口！或者在系统中查看串口。";
                 data_resend_time=1;
                 return;
             }
@@ -502,7 +572,7 @@ Item {
                 }
                 data_resend_time++;
                 serialPortManager.revDatas="";
-                serialPortManager.writeDates("Data_Receive_Failure!");
+                serialPortManager.writeDates("Data_Receive_Failure");
                 completeTimer.start();
 //                serialPortManager.closeSerialPort();
 //                readyReciveData=false;
@@ -513,6 +583,10 @@ Item {
 
                 return;
             }
+
+            serialPortManager.writeDates("@PC_saves_data$");
+            //ser.sendData("@PC_saves_data$")
+
             messageText.text="第"+data_resend_time+"次接收，数据正确，准备上传，上传过程中请勿做其他操作，完成后自动关闭对话框！\n";
             data_resend_time=0;
 
@@ -528,121 +602,121 @@ Item {
             }
 
 
-            var count=value.length/8;//sky:计算有多少组数据，每组数据8条 count == 1
+            var count=value.length/9;//sky:计算有多少组数据，每组数据9条 count == 1
 
             for(var index=0;index<count;index++){
-//                console.log("header:",value[9*index+0]);
+                console.log("header:",value[9*index+0]);
 
-//                var date=value[9*index+0].substr(value[9*index+0].indexOf("<")+1,8);
-//                console.log("date:",date);
-//                /*年*/
-//                var year=String(date).substring(0,4);
-//                console.log("year:",year);
-//                /*月*/
-//                var month=String(date).substring(4,6);
-//                console.log("month",month);
-//                /*日*/
-//                var day=String(date).substring(6,8);
-//                console.log("day",day);
-
-//                /*转换*/
-//                date=year+"-"+month+"-"+day;
-//                console.log("Date",date);
-
-//                /*时间*/
-//                var time=String(value[9*index+0]).split("-")[1];
-//                console.log("time:",time);
-//                /*时*/
-//                var hours=String(time).split(":")[0];
-//                if(Number(hours)<10)
-//                    hours="0"+String(Number(hours));
-//                else
-//                    hours=String(Number(hours));
-
-//                /*分*/
-//                var minute=String(time).split(":")[1];
-//                if(Number(minute)<10)
-//                    minute="0"+String(Number(minute));
-//                else
-//                    minute=String(Number(minute));
-
-//                /*秒*/
-//                var second=String(time).split(":")[2];
-//                if(Number(second)<10)
-//                    second="0"+String(Number(second));
-//                else
-//                    second=String(Number(second));
-//                /*转换*/
-//                time=hours+":"+minute+":"+second;
-
-
-//                /*时间+日期*/
-//                var dateTime=date+" "+time;
-//                console.log("dateTime convertion:",dateTime);
-
-
-
-//                /*炉号*/
-//                var s=Number(String(value[9*index+0]).split("-")[2].charAt(2));
-//                console.log("炉号",s);
-
-//-----------------------sky:新数据格式，获取时间和炉号
-                var now = new Date();
-
+                var date=value[9*index+0].substr(value[9*index+0].indexOf("<")+1,8);
+                console.log("date:",date);
                 /*年*/
-                var year = now.getFullYear();
-                console.log("year:",year)
+                var year=String(date).substring(0,4);
+                console.log("year:",year);
                 /*月*/
-                var month = now.getMonth() + 1;
-                console.log("month:",month)
+                var month=String(date).substring(4,6);
+                console.log("month",month);
                 /*日*/
-                var day = now.getDate();
-                console.log("day:",day)
+                var day=String(date).substring(6,8);
+                console.log("day",day);
 
                 /*转换*/
-                var date = year + "-" + month +"-" + day;
+                date=year+"-"+month+"-"+day;
+                console.log("Date",date);
 
+                /*时间*/
+                var time=String(value[9*index+0]).split("-")[1];
+                console.log("time:",time);
                 /*时*/
-                var hours = now.getHours();
-                if(hours < 10){
-                    hours = "0"+hours
-                }
+                var hours=String(time).split(":")[0];
+                if(Number(hours)<10)
+                    hours="0"+String(Number(hours));
+                else
+                    hours=String(Number(hours));
 
                 /*分*/
-                var minute = now.getMinutes();
-                if(minute < 10){
-                    minute = "0"+minute
-                }
-
+                var minute=String(time).split(":")[1];
+                if(Number(minute)<10)
+                    minute="0"+String(Number(minute));
+                else
+                    minute=String(Number(minute));
 
                 /*秒*/
-                var second = now.getSeconds();
-                if(second < 10){
-                    second = "0"+second
-                }
-
+                var second=String(time).split(":")[2];
+                if(Number(second)<10)
+                    second="0"+String(Number(second));
+                else
+                    second=String(Number(second));
                 /*转换*/
-                var time = hours + ":" + minute + ":" + second;
+                time=hours+":"+minute+":"+second;
+
 
                 /*时间+日期*/
-                var dateTime = date + " " + time;
-
+                var dateTime=date+" "+time;
                 console.log("dateTime convertion:",dateTime);
 
+
+
                 /*炉号*/
-                var s = value[8*index+0].split(",")[0].charAt(0);
-                console.log("炉号",s)
+                var s=Number(String(value[9*index+0]).split("-")[2].charAt(2));
+                console.log("炉号",s);
+
+/***-----------------------sky:新数据格式，获取时间和炉号
+//                var now = new Date();
+
+//                /*年*/
+//                var year = now.getFullYear();
+//                console.log("year:",year)
+//                /*月*/
+//                var month = now.getMonth() + 1;
+//                console.log("month:",month)
+//                /*日*/
+//                var day = now.getDate();
+//                console.log("day:",day)
+
+//                /*转换*/
+//                var date = year + "-" + month +"-" + day;
+
+//                /*时*/
+//                var hours = now.getHours();
+//                if(hours < 10){
+//                    hours = "0"+hours
+//                }
+
+//                /*分*/
+//                var minute = now.getMinutes();
+//                if(minute < 10){
+//                    minute = "0"+minute
+//                }
+
+
+//                /*秒*/
+//                var second = now.getSeconds();
+//                if(second < 10){
+//                    second = "0"+second
+//                }
+
+//                /*转换*/
+//                var time = hours + ":" + minute + ":" + second;
+
+//                /*时间+日期*/
+//                var dateTime = date + " " + time;
+
+//                console.log("dateTime convertion:",dateTime);
+
+//                /*炉号*/
+//                var s = value[8*index+0].split(",")[0].charAt(0);
+//                console.log("炉号",s)
 
 
 
 
- //----------------------sky:映射修改测试-------------------
+ //----------------------sky:映射修改测试-------------------***/
                 //炉号为偶数炉管映射处理
                 if(s % 2 === 0){
-                    for(var j = 0 ;j < 8 ;j++){
-                        var w = Number(String(value[8*index+j]).split("#")[1].charAt(0));
+                    for(var j = 1 ;j < 9 ;j++){
+                        var w = Number(String(value[9*index+j]).split("#")[1].charAt(0));
                         console.log("窗口号",w);
-                        var temp18s = String(value[8*index+j]).split(",");
+                        var temp18s = String(value[9*index+j]).split(",");
 
                         var g = 1;
                         var location = "tube_in";
@@ -709,11 +783,11 @@ Item {
 
                 }else{//炉号为奇数炉管映射处理
  //----------------------sky:映射修改测试-------------------
-                    for(var j=0;j<8;j++){
+                    for(var j=1;j<9;j++){
     //                        console.log(j+"号窗口：",value[9*index+j]);
-                        var w=Number(String(value[8*index+j]).split("#")[1].charAt(0));
+                        var w=Number(String(value[9*index+j]).split("#")[1].charAt(0));
                         console.log("窗口号",w);
-                        var temp18s=String(value[8*index+j]).split(",")
+                        var temp18s=String(value[9*index+j]).split(",")
 
                         //g=4;location=tube_in
                         var g=4;
@@ -818,7 +892,7 @@ Item {
             readyReciveData=false;
 
             //调用反馈器
-            serialPortManager.writeDates("Data_Receive_Success!");
+            serialPortManager.writeDates("Data_Receive_Success");
 
             //关闭导入数据对话框
             dataImportDialog.close();
@@ -875,7 +949,17 @@ Item {
         id:dataImportDialog
         title: "无线数据导入"
         onRejected:{
-            readyReciveData = false;
+            readyReciveData=false;
+            serialPortManager.closeSerialPort();
+            //openGlobalPort();//开启全局监听串口
+             global_port.openPort();
+        }
+
+        onAccepted:{
+            readyReciveData=false;
+            serialPortManager.closeSerialPort();
+            //openGlobalPort()
+             global_port.openPort();
         }
 
         content: Rectangle {
@@ -936,13 +1020,14 @@ Item {
                         height: 200
                         anchors.centerIn: parent
                         id:messageText
-                        text:readyReciveData?"   正在接收数据中，请用遥控器发送数据到zigbee接收器"
-                                            :
-                                              "  请选择zigbee接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦zigbee接收器是否正常安装驱动。如果不知道哪个串口对应zigbee接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应zigbee接收器的串口！或者在系统中查看串口。"
-                        font.pointSize: 20
+                        text:readyReciveData?"   正在接收数据中，请用遥控器发送数据到Rola接收器"
+                                            : "请确保Rola接收器准备就绪！\n然后点击“开始接收数据”按钮进行数据接收。"
+                                              //"  请选择Rola接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦Rola接收器是否正常安装驱动。如果不知道哪个串口对应Rola接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应Rola接收器的串口！或者在系统中查看串口。"
+                        font.pointSize: 18
                         backgroundVisible: false
                         readOnly: true
                         textColor: "#ffffff"
+
                     }
                 }
 
@@ -981,16 +1066,16 @@ Item {
 //                                        }
                                     }else{
                                         //--------------sky 添加代码
-                                        messageText.text = readyReciveData?"   正在接收数据中，请用遥控器发送数据到zigbee接收器"
-                                                                          :
-                                                                            "  请选择zigbee接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦zigbee接收器是否正常安装驱动。如果不知道哪个串口对应zigbee接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应zigbee接收器的串口！或者在系统中查看串口。";
+                                        messageText.text = readyReciveData?"   正在接收数据中，请用遥控器发送数据到Rola接收器"
+                                                                          : "请确保Rola接收器准备就绪！\n然后点击“开始接收数据”按钮进行数据接收。"
+                                                                            //"  请选择Rola接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦Rola接收器是否正常安装驱动。如果不知道哪个串口对应Rola接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应Rola接收器的串口！或者在系统中查看串口。";
                                     }
                                 }
                                 else{
                                     serialPortManager.closeSerialPort();
-                                    messageText.text =readyReciveData?"   正在接收数据中，请用遥控器发送数据到zigbee接收器"
-                                                                     :
-                                                                       "  请选择zigbee接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦zigbee接收器是否正常安装驱动。如果不知道哪个串口对应zigbee接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应zigbee接收器的串口！或者在系统中查看串口。";
+                                    messageText.text =readyReciveData?"   正在接收数据中，请用遥控器发送数据到Rola接收器"
+                                                                     : "请确保Rola接收器准备就绪！\n然后点击“开始接收数据”按钮进行数据接收。"
+                                                                       //"  请选择Rola接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦Rola接收器是否正常安装驱动。如果不知道哪个串口对应Rola接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应Rola接收器的串口！或者在系统中查看串口。";
                                     data_resend_time=1;
                                 }
                             }
@@ -1007,6 +1092,19 @@ Item {
     CustomDialog{
         id:errorDialog
         title: "错误"
+
+        onRejected:{
+            serialPortManager.closeSerialPort();
+             global_port.openPort();
+            //openGlobalPort();//开启全局监听串口
+        }
+
+        onAccepted:{
+            serialPortManager.closeSerialPort();
+             global_port.openPort();
+            //openGlobalPort()
+        }
+
         content: Item{
             width: 500
             height: 400

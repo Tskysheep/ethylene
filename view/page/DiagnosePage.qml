@@ -447,6 +447,78 @@ Item {
                     }
 
                 }
+                //sky:文丘里值输入
+                Rectangle{
+                    width: parent.width
+                    height: 50
+                    id: rightTopBar2
+                    //border.width: 1
+                    //border.color: borderColor
+                    color:"transparent"
+
+                    Row{
+                        anchors.centerIn: parent
+                        spacing: 25
+                        Text {
+                            height: 30
+                            text: "文丘里："
+                            verticalAlignment: Text.AlignBottom
+                            font.pixelSize: 23
+                        }
+                        FormTextEdit2{
+                            id:venturi1
+                            width:150
+                            height: 30
+                            focuscolor: "blue"
+                            non_focuscolor: "black"
+                            pradius: 8
+                            holderText:"请输入数值1"
+                        }
+                        FormTextEdit2{
+                            id:venturi2
+                            width:150
+                            height: 30
+                            focuscolor: "blue"
+                            non_focuscolor: "black"
+                            pradius: 8
+                            holderText:"请输入数值2"
+                        }
+                        FormTextEdit2{
+                            id:venturi3
+                            width:150
+                            height: 30
+                            focuscolor: "blue"
+                            non_focuscolor: "black"
+                            pradius: 8
+                            holderText:"请输入数值3"
+                        }
+                        FormTextEdit2{
+                            id:venturi4
+                            width:150
+                            height: 30
+                            focuscolor: "blue"
+                            non_focuscolor: "black"
+                            pradius: 8
+                            holderText:"请输入数值4"
+                        }
+
+                        Text{
+                            height: 30
+                            id:label1
+                            verticalAlignment: Text.AlignBottom
+                            text: "单位（kpa）"
+
+
+                        }
+                        Text{
+                            height: 30
+                            verticalAlignment: Text.AlignBottom
+                            text: "*未输入数值，则默认为零"
+                            color:"red"
+                        }
+                    }
+
+                }
 
                 Item{
                     id:chartsItem

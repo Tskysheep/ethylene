@@ -27,6 +27,15 @@
         <file>view/Widget/CheckButton.qml</file>
         <file>view/Widget/TDialog.qml</file>
         <file>view/Widget/TDialogForm.ui.qml</file>
+        <file>view/Widget/FormTextEdit2.qml</file>
+        <file>view/page/DiagnosePage2.qml</file>
+        <file>view/Widget/DiagnoseChartView.qml</file>
+        <file>view/page/SettingPage2.qml</file>
+        <file>view/page/PressureDataInputPage.qml</file>
+        <file>view/page/PressureDataSearchPage.qml</file>
+        <file>view/page/PressureDataComparePage.qml</file>
+        <file>view/page/DiagnosePage3.qml</file>
+        <file>view/Widget/TipBusyIndicator.qml</file>
     </qresource>
     <qresource prefix="/imgs">
         <file>icons/add.png</file>
@@ -84,5 +93,26 @@
         <file>icons/icon_tube_out.png</file>
         <file>icons/icon_tube_in.png</file>
         <file>icons/icon_tube_cot.png</file>
+        <file>icons/import_icon.png</file>
+        <file>icons/search_icon.png</file>
+        <file>icons/hongtai_logo.png</file>
+        <file>icons/tmp_icon.png</file>
+        <file>icons/press_icon.png</file>
+        <file>icons/diagnose.png</file>
+        <file>icons/param_icon.png</file>
+        <file>icons/user_icon.png</file>
+        <file>icons/compare_icon.png</file>
+        <file>icons/version_icon.png</file>
+        <file>icons/export_icon.png</file>
+        <file>icons/press_cmp_icon.png</file>
+        <file>icons/tmp_cmp_icon.png</file>
+        <file>icons/edit_icon.png</file>
+        <file>icons/sure_icon.png</file>
+        <file>icons/local_setting.png</file>
+        <file>icons/tube_setting.png</file>
+    </qresource>
+    <qresource prefix="/js">
+        <file>thread.js</file>
+        <file>job.js</file>
     </qresource>
 </RCC>

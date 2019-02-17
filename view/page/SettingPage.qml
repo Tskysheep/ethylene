@@ -1,10 +1,30 @@
 import QtQuick 2.0
 import QtQuick.Dialogs 1.0
+import QtGraphicalEffects 1.0
 import "../Widget"
 //相关参数(警戒温度, 备份周期等)录入页
 Rectangle {
     id:root
     anchors.fill: parent
+
+    Image {
+        id: bgimage
+        z:1
+        anchors.fill: parent
+        source: "qrc:/imgs/icons/login_bg.jpg"
+    }
+
+    Rectangle{
+        id:midpanel
+        z:2
+        anchors.fill: parent
+        color: "white"
+        opacity: 0.5
+
+    }
+
+
+
 
     Rectangle{
         anchors.centerIn: parent
@@ -12,12 +32,27 @@ Rectangle {
         height: 600
         border.width: 1
         border.color: "#cccccc"
-        radius: 2
+        radius: 5
+        z:3
+
+        Glow{
+            anchors.fill: mainCol
+            color: "#ffffff"
+            spread: 0.5
+            radius: 8
+            source: mainCol
+            transparentBorder: true
+            fast: true
+            cached: true
+            samples: 15
+
+        }
 
         Column{
             y:60
             x:30
             spacing: 15
+            id:mainCol
 
             Item{
                 id:tubeInSettingItem

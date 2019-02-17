@@ -86,7 +86,16 @@ Item {
                         width: 150
                         height: 40
                         radius: height/2
-                        color: "#12eaff"
+                        color: "#333333"
+                        scale: yes_ma.containsMouse ? 1.1 : 1
+                        Behavior on scale{
+                            PropertyAnimation{
+                                properties : "scale"
+                                duration : 200
+                                easing.type: Easing.OutBack
+                            }
+                        }
+
                         Text{
                             anchors.centerIn: parent
                             text: "确定"
@@ -94,7 +103,9 @@ Item {
                             color: "white"
                         }
                         MouseArea{
+                            id:yes_ma
                             anchors.fill: parent
+                            hoverEnabled: true
                             onClicked: {
                                 accepted();
                                 close();
@@ -107,6 +118,15 @@ Item {
                         height: 40
                         radius: height/2
                         color: "#344775"
+                        scale: no_ma.containsMouse ? 1.1 : 1
+                        Behavior on scale{
+                            PropertyAnimation{
+                                properties: "scale"
+                                duration: 200
+                                easing.type: Easing.OutBack
+                            }
+                        }
+
                         Text{
                             anchors.centerIn: parent
                             text: "取消"
@@ -115,7 +135,9 @@ Item {
                         }
 
                         MouseArea{
+                            id:no_ma
                             anchors.fill: parent
+                            hoverEnabled: true
                             onClicked: {
                                 rejected();
                                 close();
