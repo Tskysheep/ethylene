@@ -66,7 +66,7 @@ Item {
                             text: "日期"
                         }
                         Rectangle{
-                            width: time_show_text1.width + time_select_btn1.width + 40
+                            width: time_show_edit.width + time_select_btn1.width + 40
                             height: time_select_btn1.height + 8
 
                             radius: height/2
@@ -86,12 +86,38 @@ Item {
                                     color: "#00000000"
                                 }
 
-                                Text{
+/*                                Text{
                                     id:time_show_text1
                                     text:globalDate.toLocaleDateString(Qt.local,"yyyy/MM/dd")
                                     anchors.verticalCenter: parent.verticalCenter
+                                }
 
+*/
+                                TextField{
+                                    id:time_show_edit
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    horizontalAlignment: TextInput.AlignHCenter
+                                    text:Qt.formatDateTime(globalDate,"yyyy/MM/dd")
+                                    validator: RegExpValidator{
+                                        //regExp: /^(?:(?!0000)[0-9]{4}[/](?:(?:0[1-9]|1[0-2])(?:0[1-9]|1[0-9]|2[0-8])|(?:0[13-9]|1[0-2])[/](?:29|30)|(?:0[13578]|1[02])-31)|(?:[0-9]{2}(?:0[48]|[2468][048]|[13579][26])|(?:0[48]|[2468][048]|[13579][26])00)-02-29)$/
+                                        //利用正则限定日期格式输入（yyyy/MM/dd）
+                                        regExp: /^([0-9]{4}|[0-9]{2})[/]([0]?[1-9]|[1][0-2])[/]([0]?[1-9]|[1|2][0-9]|[3][0|1])$/
+                                    }
 
+                                    onTextChanged: {
+
+                                    }
+
+                                    onEditingFinished:{
+                                    }
+
+                                    style:TextFieldStyle{
+                                        background: Rectangle{
+                                            color: "#00000000"
+                                            border.color: "#00000000"
+                                        }
+                                    }
                                 }
 
                                 Image {
@@ -159,41 +185,51 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 font.pixelSize: 20
                             }
-                            FormTextEdit2{
+//                            FormTextEdit2{
+//                                id:venturi1
+//                                width:150
+//                                height: 30
+//                                focuscolor: "blue"
+//                                non_focuscolor: "black"
+//                                pradius: 8
+//                                holderText:"请输入数值1"
+//                            }
+                            PlainTextEdit{
                                 id:venturi1
-                                width:150
+                                width: 150
                                 height: 30
-                                focuscolor: "blue"
-                                non_focuscolor: "black"
-                                pradius: 8
-                                holderText:"请输入数值1"
+                                maxNumber: 1500
+                                minNumber: 0
+                                verticalAlignment: TextInput.AlignVCenter
+                                holderText: "请输入数值1"
                             }
-                            FormTextEdit2{
+
+                            PlainTextEdit{
                                 id:venturi2
-                                width:150
+                                width: 150
                                 height: 30
-                                focuscolor: "blue"
-                                non_focuscolor: "black"
-                                pradius: 8
-                                holderText:"请输入数值2"
+                                maxNumber: 1500
+                                minNumber: 0
+                                verticalAlignment: TextInput.AlignVCenter
+                                holderText: "请输入数值2"
                             }
-                            FormTextEdit2{
+                            PlainTextEdit{
                                 id:venturi3
-                                width:150
+                                width: 150
                                 height: 30
-                                focuscolor: "blue"
-                                non_focuscolor: "black"
-                                pradius: 8
-                                holderText:"请输入数值3"
+                                maxNumber: 1500
+                                minNumber: 0
+                                verticalAlignment: TextInput.AlignVCenter
+                                holderText: "请输入数值3"
                             }
-                            FormTextEdit2{
+                            PlainTextEdit{
                                 id:venturi4
-                                width:150
+                                width: 150
                                 height: 30
-                                focuscolor: "blue"
-                                non_focuscolor: "black"
-                                pradius: 8
-                                holderText:"请输入数值4"
+                                maxNumber: 1500
+                                minNumber: 0
+                                verticalAlignment: TextInput.AlignVCenter
+                                holderText: "请输入数值4"
                             }
 
 
@@ -269,16 +305,10 @@ Item {
             }
         }
 
-        Flickable{
-            id:gridFlic
+
+        ScrollView{
             width: parent.width
             height: parent.height - topBar.height - header.height
-            clip: true
-            flickableDirection: Qt.Vertical
-            contentHeight: gridContent.height
-            contentWidth: gridContent.width
-            anchors.horizontalCenter: parent.horizontalCenter
-            boundsBehavior: Flickable.DragOverBounds
 
             Item{
                 id: gridContent
@@ -409,7 +439,22 @@ Item {
                     }
                 }
             }
+
         }
+
+
+//        Flickable{
+//            id:gridFlic
+//            width: parent.width
+//            height: parent.height - topBar.height - header.height
+//            clip: true
+//            flickableDirection: Qt.Vertical
+//            contentHeight: gridContent.height
+//            contentWidth: gridContent.width
+//            anchors.horizontalCenter: parent.horizontalCenter
+//            boundsBehavior: Flickable.DragOverBounds
+
+//        }
 
 
     }
@@ -440,6 +485,12 @@ Item {
         Column{
             anchors.fill: parent
             spacing: 20
+            Item{
+                //占空
+                width: parent.width
+                height: 1
+            }
+
             Text {
                 id:pwd_tips
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -515,6 +566,7 @@ Item {
                                 venturi4_fix_input.holderText = pressdataModel.get(current_edit_item_index).value4
                                 pwd_input_dialog.visible = false;
                                 venturi_fix_dialog.visible = true;
+                                title_tip.text = "*请修改文丘里的值"
 
 
                             }else{
@@ -575,172 +627,227 @@ Item {
         border.width: 2
         border.color: "black"
         width: 300
-        height: 500
+        height: 450
         anchors.centerIn: parent
 
         Column{
-            anchors.fill: parent
-            spacing: 50
+            width: parent.width
+            spacing: 20
+            Item {
+                //占空
+                height: 1
+                width: parent.width
+            }
             Text {
+                id:title_tip
+                anchors.horizontalCenter: parent.horizontalCenter
                 text:"*请修改文丘里的值"
                 font.pixelSize: 23
                 color: "#FC0303"
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
-            Row{
-                Text {
-                    id:date_tip
-                    text: "   日期："
-                    anchors.verticalCenter:parent.verticalCenter
-                    //font.family: "微软雅黑"
-                }
-
-                FormTextEdit2{
-                    id:fix_date_input
-                    non_focuscolor: "black"
-                    width: venturi_fix_dialog.width - date_tip.width - 10
-                }
 
             }
 
-            Row{
-                Text {
-                    text: "文丘里1："
-                    anchors.verticalCenter: parent.verticalCenter
-                    //font.family: "微软雅黑"
-                }
-
-                FormTextEdit2{
-                    id:venturi1_fix_input
-                    non_focuscolor: "black"
-                    width: venturi_fix_dialog.width - date_tip.width - 10
-                }
-            }
-
-            Row{
-                Text {
-                    text: "文丘里2："
-                    anchors.verticalCenter:parent.verticalCenter
-                    //font.family: "微软雅黑"
-                }
-
-                FormTextEdit2{
-                    id:venturi2_fix_input
-                    non_focuscolor: "black"
-                    width: venturi_fix_dialog.width - date_tip.width - 10
-                }
-            }
-
-            Row{
-                Text {
-                    text: "文丘里3："
-                    anchors.verticalCenter:parent.verticalCenter
-                    //font.family: "微软雅黑"
-                }
-
-                FormTextEdit2{
-                    id:venturi3_fix_input
-                    non_focuscolor: "black"
-                    width: venturi_fix_dialog.width - date_tip.width - 10
-                }
-            }
-
-            Row{
-                Text {
-                    text: "文丘里4："
-                    anchors.verticalCenter:parent.verticalCenter
-                    //font.family: "微软雅黑"
-                }
-
-                FormTextEdit2{
-                    id:venturi4_fix_input
-                    non_focuscolor: "black"
-                    width: venturi_fix_dialog.width - date_tip.width - 10
-                }
-            }
-
-            Row{
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 50
-                Rectangle{
-                    id:yes_btn2
-                    color: "#557EE4"
-                    radius: 5
-                    width: 80
-                    height: 30
-                    scale: ma3.containsMouse?1.1:1
-                    Behavior on scale{
-                        PropertyAnimation{
-                            properties: "scale"
-                            duration: 200
-                            easing.type: Easing.OutBack
-                        }
-                    }
-
+            Column{
+                spacing: 30
+                Row{
                     Text {
-                        anchors.centerIn: parent
-                        text:"确定"
-                        font.pixelSize: 23
+                        id:date_tip
+                        text: "日   期："
+                        anchors.verticalCenter:parent.verticalCenter
+                        //font.family: "微软雅黑"
                     }
 
-                    MouseArea{
-                        id:ma3
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            venturi_fix_dialog.visible = false;
-                            //获取旧数据
-                            var old_values = []
-                            old_values.push(pressdataModel.get(current_edit_item_index).value1)
-                            old_values.push(pressdataModel.get(current_edit_item_index).value2)
-                            old_values.push(pressdataModel.get(current_edit_item_index).value3)
-                            old_values.push(pressdataModel.get(current_edit_item_index).value4)
-                            //获取新数据
-                            var new_values = []
-                            new_values.push(venturi1_fix_input.text)
-                            new_values.push(venturi2_fix_input.text)
-                            new_values.push(venturi3_fix_input.text)
-                            new_values.push(venturi4_fix_input.text)
+    //                FormTextEdit2{
+    //                    id:fix_date_input
+    //                    non_focuscolor: "black"
+    //                    width: venturi_fix_dialog.width - date_tip.width - 10
+    //                }
 
-                            //获取旧时间
-                            var old_time = pressdataModel.get(current_edit_item_index).time.split("/").join("-")
+                    PlainTextEdit{
+                        id:fix_date_input
+                        validator: RegExpValidator{regExp: /^([0-9]{4}|[0-9]{2})[/]([0]?[1-9]|[1][0-2])[/]([0]?[1-9]|[1|2][0-9]|[3][0|1]) (?:[01]\d|2[0-3])(?::[0-5]\d){2}$/}
+                        width: venturi_fix_dialog.width - date_tip.width - 10
 
-                            //获取新时间
-                            var new_time = fix_date_input.text.split("/").join("-")
 
-                            server.updatePressData(String(current_fn),old_values,new_values,old_time,new_time)
-
-                            refreshData()
-                        }
                     }
+
 
                 }
 
-                Rectangle{
-                    id:cancel_btn2
-                    color: "#C4C4C4"
-                    radius: 5
-                    width: 80
-                    height: 30
-                    scale: ma4.containsMouse?1.1:1
-                    Behavior on scale{
-                        PropertyAnimation{
-                            properties: "scale"
-                            duration: 200
-                            easing.type: Easing.OutBack
-                        }
-                    }
+                Row{
                     Text {
-                        anchors.centerIn: parent
-                        text:"取消"
-                        font.pixelSize: 23
+                        text: "文丘里1："
+                        anchors.verticalCenter: parent.verticalCenter
+                        //font.family: "微软雅黑"
                     }
 
-                    MouseArea{
-                        id:ma4
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: venturi_fix_dialog.visible = false;
+    //                FormTextEdit2{
+    //                    id:venturi1_fix_input
+    //                    non_focuscolor: "black"
+    //                    width: venturi_fix_dialog.width - date_tip.width - 10
+    //                }
+                    PlainTextEdit{
+                        id:venturi1_fix_input
+                        maxNumber: 1500
+                        minNumber: 0
+                        width: venturi_fix_dialog.width - date_tip.width - 10
+
+                    }
+                }
+
+                Row{
+                    Text {
+                        text: "文丘里2："
+                        anchors.verticalCenter:parent.verticalCenter
+                        //font.family: "微软雅黑"
+                    }
+
+    //                FormTextEdit2{
+    //                    id:venturi2_fix_input
+    //                    non_focuscolor: "black"
+    //                    width: venturi_fix_dialog.width - date_tip.width - 10
+    //                }
+
+                    PlainTextEdit{
+                        id:venturi2_fix_input
+                        maxNumber: 1500
+                        minNumber: 0
+                        width: venturi_fix_dialog.width - date_tip.width - 10
+
+                    }
+                }
+
+                Row{
+                    Text {
+                        text: "文丘里3："
+                        anchors.verticalCenter:parent.verticalCenter
+                        //font.family: "微软雅黑"
+                    }
+
+    //                FormTextEdit2{
+    //                    id:venturi3_fix_input
+    //                    non_focuscolor: "black"
+    //                    width: venturi_fix_dialog.width - date_tip.width - 10
+    //                }
+
+                    PlainTextEdit{
+                        id:venturi3_fix_input
+                        maxNumber: 1500
+                        minNumber: 0
+                        width: venturi_fix_dialog.width - date_tip.width - 10
+
+                    }
+                }
+
+                Row{
+                    Text {
+                        text: "文丘里4："
+                        anchors.verticalCenter:parent.verticalCenter
+                        //font.family: "微软雅黑"
+                    }
+
+    //                FormTextEdit2{
+    //                    id:venturi4_fix_input
+    //                    non_focuscolor: "black"
+    //                    width: venturi_fix_dialog.width - date_tip.width - 10
+    //                }
+
+                    PlainTextEdit{
+                        id:venturi4_fix_input
+                        maxNumber: 1500
+                        minNumber: 0
+                        width: venturi_fix_dialog.width - date_tip.width - 10
+
+                    }
+                }
+
+                Row{
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 50
+                    Rectangle{
+                        id:yes_btn2
+                        color: "#557EE4"
+                        radius: 5
+                        width: 80
+                        height: 30
+                        scale: ma3.containsMouse?1.1:1
+                        Behavior on scale{
+                            PropertyAnimation{
+                                properties: "scale"
+                                duration: 200
+                                easing.type: Easing.OutBack
+                            }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text:"确定"
+                            font.pixelSize: 23
+                        }
+
+                        MouseArea{
+                            id:ma3
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: {
+                                venturi_fix_dialog.visible = false;
+                                //获取旧数据
+                                var old_values = []
+                                old_values.push(pressdataModel.get(current_edit_item_index).value1)
+                                old_values.push(pressdataModel.get(current_edit_item_index).value2)
+                                old_values.push(pressdataModel.get(current_edit_item_index).value3)
+                                old_values.push(pressdataModel.get(current_edit_item_index).value4)
+                                //获取新数据
+                                var new_values = []
+                                new_values.push(venturi1_fix_input.text)
+                                new_values.push(venturi2_fix_input.text)
+                                new_values.push(venturi3_fix_input.text)
+                                new_values.push(venturi4_fix_input.text)
+
+                                //获取旧时间
+                                var old_time = pressdataModel.get(current_edit_item_index).time.split("/").join("-")
+
+                                //获取新时间
+                                var new_time = fix_date_input.text.split("/").join("-")
+
+                                if(!server.updatePressData(String(current_fn),old_values,new_values,old_time,new_time)){
+                                    venturi_fix_dialog.visible = true;
+                                    title_tip.text = title_tip.text + "\n数据修改失败!"
+                                }
+
+                                refreshData()
+                            }
+                        }
+
+                    }
+
+                    Rectangle{
+                        id:cancel_btn2
+                        color: "#C4C4C4"
+                        radius: 5
+                        width: 80
+                        height: 30
+                        scale: ma4.containsMouse?1.1:1
+                        Behavior on scale{
+                            PropertyAnimation{
+                                properties: "scale"
+                                duration: 200
+                                easing.type: Easing.OutBack
+                            }
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            text:"取消"
+                            font.pixelSize: 23
+                        }
+
+                        MouseArea{
+                            id:ma4
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: venturi_fix_dialog.visible = false;
+
+                        }
 
                     }
 
@@ -749,5 +856,6 @@ Item {
             }
 
         }
+
     }
 }

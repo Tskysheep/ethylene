@@ -31,10 +31,15 @@ Item {
 
     property int data_resend_time: 0;
     property alias topBar: topBar
+
+    property var newvalues: []
+    property var oldvalues: []
+    property bool flag: false
+
     //更新3管数据
     function refresh(){
         //获取最新数据的时间
-        var date = server.access_tube_newest_time();
+        var date = server.access_tube_newest_time(currentFornace);
         var date2 = new Date(date.toString())
         newest_date = date2.getFullYear() + "/" + (date2.getMonth()+1) + "/" + date2.getDate();
         console.log(" 最新时间：",newest_date)
@@ -43,10 +48,11 @@ Item {
         var st=new Date().getTime();
         requestData = {};
         //sky:在global中为server导出对像：engine->rootContext()->setContextProperty("server",MysqlServer::instance());
-        requestData.tubeInDatas = server.access_tube_in_temp();//sky:将入管的数据读入暂时的数组中
-        requestData.tubeOutDatas = server.access_tube_out_temp();//sky:将出管的数据读入暂时的数组中
+        requestData.tubeInDatas = server.access_tube_in_temp(currentFornace);//sky:将入管的数据读入暂时的数组中
+        requestData.tubeOutDatas = server.access_tube_out_temp(currentFornace);//sky:将出管的数据读入暂时的数组中
 //        requestData.tubeCOTDatas = server.access_tube_out_temp();
-        requestData.tubeCOTDatas = server.access_tube_cot_temp();////sky:将cot数据读入暂时的数组中
+        requestData.tubeCOTDatas = server.access_tube_cot_temp(currentFornace);////sky:将cot数据读入暂时的数组中
+        console.log(JSON.stringify(requestData.tubeCOTDatas))
         //打印刷新时间
         var et=new Date().getTime();
         console.log("spend time:",et-st)
@@ -125,8 +131,9 @@ Item {
             var tempIn = requestData.tubeInDatas[currentGroup*12 + i].temp;
             var tempOut = requestData.tubeOutDatas[currentGroup*12 + i].temp;
             var tempCot =0;
-            if(requestData.tubeCotDatas != null){
-                tempCot = requestData.tubeCotDatas[currentGroup*12 + i].temp;
+            if(requestData.tubeCOTDatas.length !== 0){
+                tempCot = requestData.tubeCOTDatas[currentGroup*12 + i].temp;
+                //console.log(currentGroup*12 + i,requestData.tubeCOTDatas[currentGroup*12 + i].temp)
             }
 
 
@@ -142,12 +149,48 @@ Item {
         tubeInBarSet.values = tubeInBarValues;
         tubeOutBarSet.values = tubeOutBarValues;
         tubeCOTBarSet.values = tubeCOTBarValues;
+
+        oldvalues.push(tubeOutBarValues)
+        newvalues.push([])
+        oldvalues.push(tubeInBarValues)
+        newvalues.push([])
+        oldvalues.push(tubeCOTBarValues)
+        newvalues.push([])
+
+        for(var a = 0; a < oldvalues.length; a++){
+            for(var b = 0; b < oldvalues[a].length; b++){
+                if(a === 0){
+                    if(Number(oldvalues[a][b]) <= mainWindow.tubeout_alert_temp){
+                        newvalues[a][b] = oldvalues[a][b]
+                    }else{
+                       newvalues[a][b] = 0
+                    }
+                }else if(a === 1){
+                    if(Number(oldvalues[a][b]) <= mainWindow.tubein_alert_temp){
+                        newvalues[a][b] = oldvalues[a][b]
+                    }else{
+                       newvalues[a][b] = 0
+                    }
+                }else{
+                    if(Number(oldvalues[a][b]) <= mainWindow.tubecot_alert_temp){
+                        newvalues[a][b] = oldvalues[a][b]
+                    }else{
+                       newvalues[a][b] = 0
+                    }
+                }
+            }
+        }
+        flash_timer.start()
     }
     //监听组的切换,切换管时切换图像
     onCurrentGroupChanged: {
         tubeInLine.clear();
         tubeOutLine.clear();
         tubeCOTLine.clear();
+
+        flash_timer.stop()
+        oldvalues = []
+        newvalues = []
 
         var tubeInBarValues = [];
         var tubeOutBarValues = [];
@@ -157,8 +200,9 @@ Item {
             var tempIn = requestData.tubeInDatas[currentGroup*12 + i].temp;
             var tempOut = requestData.tubeOutDatas[currentGroup*12 + i].temp;
             var tempCot =0;
-            if(requestData.tubeCotDatas != null){
-                tempCot = requestData.tubeCotDatas[currentGroup*12 + i].temp;
+            if(requestData.tubeCOTDatas.length !== 0){
+                tempCot = requestData.tubeCOTDatas[currentGroup*12 + i].temp;
+                //console.log(currentGroup*12 + i,requestData.tubeCOTDatas[currentGroup*12 + i].temp)
             }
             tubeInLine.append((i+1), tempIn);
             tubeOutLine.append((i+1), tempOut);
@@ -176,6 +220,65 @@ Item {
         tubeInBarSet.values = tubeInBarValues;
         tubeOutBarSet.values = tubeOutBarValues;
         tubeCOTBarSet.values = tubeCOTBarValues;
+
+        oldvalues.push(tubeOutBarValues)
+        newvalues.push([])
+        oldvalues.push(tubeInBarValues)
+        newvalues.push([])
+        oldvalues.push(tubeCOTBarValues)
+        newvalues.push([])
+
+        for(var a = 0; a < oldvalues.length; a++){
+            for(var b = 0; b < oldvalues[a].length; b++){
+                if(a === 0){
+                    if(Number(oldvalues[a][b]) <= mainWindow.tubeout_alert_temp){
+                        newvalues[a][b] = oldvalues[a][b]
+                    }else{
+                       newvalues[a][b] = 0
+                    }
+                }else if(a === 1){
+                    if(Number(oldvalues[a][b]) <= mainWindow.tubein_alert_temp){
+                        newvalues[a][b] = oldvalues[a][b]
+                    }else{
+                       newvalues[a][b] = 0
+                    }
+                }else{
+                    if(Number(oldvalues[a][b]) <= mainWindow.tubecot_alert_temp){
+                        newvalues[a][b] = oldvalues[a][b]
+                    }else{
+                       newvalues[a][b] = 0
+                    }
+                }
+            }
+        }
+
+        flash_timer.start()
+    }
+
+    Timer {
+        id:flash_timer
+        interval: 500
+        repeat: true
+        onTriggered: {
+            if(flag){
+                //console.log(1)
+                for(var a = 0 ; a <  oldvalues.length; a++ ){
+                    for(var b = 0; b < oldvalues[a].length;b++){
+                        bars.at(a).replace(b, oldvalues[a][b])
+                    }
+                }
+                flag = false
+            }else{
+                //console.log(2)
+                for(var a = 0 ; a <  oldvalues.length; a++ ){
+                    for(var b = 0; b < oldvalues[a].length;b++){
+                        bars.at(a).replace(b, newvalues[a][b])
+                    }
+                }
+                flag = true
+            }
+
+        }
     }
 
     Column{
@@ -279,7 +382,7 @@ Item {
                             antialiasing: true
                             id:linearChart
                             title: "数据导入时间：" + newest_date
-                            titleFont.family: "微软雅黑"
+                            //titleFont.family: "微软雅黑"
                             titleFont.pixelSize: 20
 
 
@@ -288,7 +391,7 @@ Item {
                                 min: 1
                                 max: 12
                                 titleText: "管号"
-                                titleFont.family: "微软雅黑"
+                                //titleFont.family: "微软雅黑"
                                 titleFont.pixelSize: 20
                                 tickCount: 12
                                 labelFormat: "%.0f"
@@ -299,7 +402,7 @@ Item {
                                 min: 700
                                 max: 1100
                                 titleText: "温度/℃"
-                                titleFont.family: "微软雅黑"
+                                //titleFont.family: "微软雅黑"
                                 titleFont.pixelSize: 20
                                 labelFormat: "%.0f"
                             }
@@ -318,9 +421,9 @@ Item {
                                 //sky：显示每个点的数值
                                 pointLabelsVisible: true
                                 pointLabelsClipping : false
-                                pointLabelsColor:"#66ff5645"
+                                pointLabelsColor:"black"
                                 pointLabelsFont.pixelSize: 23
-                                pointLabelsFont.family: "微软雅黑"
+                                //pointLabelsFont.family: "微软雅黑"
                                 pointLabelsFormat: "@yPoint"
 
                             }
@@ -341,7 +444,7 @@ Item {
                                 pointLabelsClipping : false
                                 pointLabelsColor:"#66ff5645"
                                 pointLabelsFont.pixelSize: 23
-                                pointLabelsFont.family: "微软雅黑"
+                                //pointLabelsFont.family: "微软雅黑"
                                 pointLabelsFormat: "@yPoint"
 
                             }
@@ -361,8 +464,9 @@ Item {
                                 pointLabelsVisible: true
                                 pointLabelsClipping : false
                                 pointLabelsColor:"#660077ff"
-                                pointLabelsFont.family: "微软雅黑"
+                                //pointLabelsFont.family: "微软雅黑"
                                 pointLabelsFont.pixelSize: 23
+                                pointLabelsFormat: "@yPoint"
                             }
 
                         }
@@ -381,14 +485,14 @@ Item {
                             antialiasing: true
                             id:barChart
                             title: "数据导入时间：" + newest_date
-                            titleFont.family: "微软雅黑"
+                            //titleFont.family: "微软雅黑"
                             titleFont.pixelSize: 20
                             ValueAxis {
                                 id: barAxisY
                                 min: 700
                                 max: 1100
                                 titleText: "温度/℃"
-                                titleFont.family: "微软雅黑"
+                                //titleFont.family: "微软雅黑"
                                 titleFont.pixelSize: 20
                                 labelFormat: "%.0f"
                             }
@@ -400,7 +504,7 @@ Item {
 
                                 axisX: BarCategoryAxis {
                                     titleText: "管号"
-                                    titleFont.family: "微软雅黑"
+                                    //titleFont.family: "微软雅黑"
                                     titleFont.pixelSize: 20
 
                                     categories: ["1", "2", "3", "4", "5", "6","7","8","9","10","11","12" ]
@@ -411,7 +515,7 @@ Item {
                                     id:tubeOutBarSet
                                     //sky 数值的字体颜色等
                                     label: "出管温度";
-                                    labelFont.family: "微软雅黑"
+                                    //labelFont.family: "微软雅黑"
                                     labelFont.pixelSize: 20
                                     labelColor: "#209fdf"
 //                                    values: [966, 966,966, 966, 966, 966,966,966,966,966,966]
@@ -419,7 +523,7 @@ Item {
                                 BarSet {
                                     id: tubeInBarSet
                                     label: "入管温度";
-                                    labelFont.family: "微软雅黑"
+                                    //labelFont.family: "微软雅黑"
                                     labelFont.pixelSize: 20
                                     labelColor: "#99ca53"
 //                                    values: [888,888,888,888,888,888,888,888,888,888,888,888]
@@ -427,7 +531,7 @@ Item {
                                 BarSet {
                                     id: tubeCOTBarSet
                                     label: "COT温度";
-                                    labelFont.family: "微软雅黑"
+                                    //labelFont.family: "微软雅黑"
                                     labelFont.pixelSize: 20
                                     labelColor: "#F6A625"
 //                                    values: [855,855,855,855,855,855,855,855,855,855,855,855]
@@ -447,7 +551,7 @@ Item {
                     model: 4
                     delegate: Text{
                         font.pixelSize: 20
-                        font.family: "微软雅黑"
+                        //font.family: "微软雅黑"
                         color: currentGroup === index?"#557EE4": "#000000"
                         text: "第"+Number(index+1)+"组"
                         MouseArea{
@@ -498,7 +602,7 @@ Item {
                     height: 36
                     textSize: 13
                     onBngClicked: {
-                        global_port.closePort();
+                        globalPort.closePort();
                         messageText.text =readyReciveData?"   正在接收数据中，请用遥控器发送数据到Rola接收器"
                                                          :"请确保Rola接收器准备就绪！\n然后点击“开始接收数据”按钮进行数据接收。"
                                                            //"  请选择Rola接收器串口对应的串口，然后再按下开始接收按钮，系统会自动接收遥控器发来的数据，直到接收完毕，如果没有找到串口号，请检擦Rola接收器是否正常安装驱动。如果不知道哪个串口对应Rola接收器的，可以先拔出usb线，然后点击导入数据按钮查看串口第一次，然后关闭对话框，重新插入usb线，再点击导入数据按钮查看串口第二次，如果第二次出现了第一次查看串口时没有的串口名，说明这就是对应Rola接收器的串口！或者在系统中查看串口。";
@@ -952,14 +1056,14 @@ Item {
             readyReciveData=false;
             serialPortManager.closeSerialPort();
             //openGlobalPort();//开启全局监听串口
-             global_port.openPort();
+             globalPort.openPort();
         }
 
         onAccepted:{
             readyReciveData=false;
             serialPortManager.closeSerialPort();
             //openGlobalPort()
-             global_port.openPort();
+             globalPort.openPort();
         }
 
         content: Rectangle {
@@ -1095,13 +1199,13 @@ Item {
 
         onRejected:{
             serialPortManager.closeSerialPort();
-             global_port.openPort();
+             globalPort.openPort();
             //openGlobalPort();//开启全局监听串口
         }
 
         onAccepted:{
             serialPortManager.closeSerialPort();
-             global_port.openPort();
+             globalPort.openPort();
             //openGlobalPort()
         }
 

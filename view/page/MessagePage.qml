@@ -25,7 +25,7 @@ Rectangle {
     Rectangle{
         anchors.centerIn: parent
         width: 600
-        height: 396//mainCol.height +60
+        height: 396 + 35 //mainCol.height +60
         border.width: 1
         border.color: "#dddddd"
         radius: 5
@@ -46,7 +46,9 @@ Rectangle {
 
         Column{
             id:mainCol
-            anchors.centerIn: parent
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: 50
             spacing: 20
 
             Text{
@@ -93,6 +95,16 @@ Rectangle {
 
 
         }
+
+        Image {
+            id: logo
+            anchors.top: mainCol.bottom
+            anchors.topMargin: 20
+            anchors.right: mainCol.right
+            anchors.rightMargin: -3
+            source: "qrc:/imgs/icons/hongtai_logo2.jpg"
+        }
+
     }
 
 }

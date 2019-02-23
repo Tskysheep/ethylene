@@ -95,6 +95,7 @@ void Utils::test(QList<double> tmtouts,QList<double> aprs)
 
 
 
+    //QString program = "C:\\Users\\Administrator\\Desktop\\code\\cube_coking_diagnose.exe";
     QString program = "C:\\Users\\sky\\Desktop\\op\\cube_coking_diagnose.exe";
     //QString result;
 
@@ -121,7 +122,7 @@ void Utils::test(QList<double> tmtouts,QList<double> aprs)
 
 //    return result;
 
-    qDebug()<<"调用完成";
+    //qDebug()<<"调用完成";
 
 }
 

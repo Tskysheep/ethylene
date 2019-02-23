@@ -53,6 +53,7 @@ Item {
                             submenuVisible: onHovered
 
                             onBntClicked: {
+                                if(index === 7) {server.logOut();mainWin.close()}
                                 //sky一级按钮被按下,
                                 if(loadindex === index){//sky一级被重复按下，根据情况显示子菜单
                                     menuList.setProperty(index,"onHovered",!submenuVisible);

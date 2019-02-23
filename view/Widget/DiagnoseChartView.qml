@@ -7,7 +7,12 @@ Item {
     property alias x_axis_min: xAxis.min
     property alias x_axis_max: xAxis.max
     property alias _lineSeries: lineSeries
-    property alias _scatterSeries: scatterSeries
+    property alias _lineSeries2: lineSeries2
+    property alias _lineSeries3: lineSeries3
+    property alias _scatterSeries: scatterSeries0
+    property alias _scatterSeries1: scatterSeries1
+    property alias _scatterSeries2: scatterSeries2
+    property alias _scatterSeries3: scatterSeries3
     property alias title: analysisChartView.title
 
 
@@ -34,7 +39,6 @@ Item {
             titleColor: fontColorNormal
             titleFont.pixelSize: 20
             antialiasing: true
-            legend.visible: false
             property var maxValue: 4
             property var minValue: -1
             backgroundColor: "#00000000"
@@ -56,14 +60,62 @@ Item {
             }
             SplineSeries{
                 id:lineSeries
+                name:"出管趋势曲线"
                 axisX: xAxis
                 axisY: yAxis
+                style: Qt.DashLine
+                color: "blue"
+
+            }
+            SplineSeries{
+                id:lineSeries2
+                name:"入管趋势曲线"
+                axisX: xAxis
+                axisY: yAxis
+                style: Qt.DashDotLine
+                color: "black"
+            }
+
+            SplineSeries{
+                id:lineSeries3
+                name:"TMT/COT曲线"
+                axisX: xAxis
+                axisY: yAxis
+                style: Qt.SolidLine
+                color: "green"
             }
 
             ScatterSeries{
-                id:scatterSeries
+                id:scatterSeries0
+                name:"正常"
                 axisX: xAxis
                 axisY: yAxis
+                color: "#13B92E"
+            }
+
+            ScatterSeries{
+                id:scatterSeries1
+                name:"轻度结焦"
+                axisX: xAxis
+                axisY: yAxis
+                color: "#E1D121"
+
+            }
+
+            ScatterSeries{
+                id:scatterSeries2
+                name:"中度结焦"
+                axisX: xAxis
+                axisY: yAxis
+                color: "#FD9F02"
+            }
+
+            ScatterSeries{
+                id:scatterSeries3
+                name:"严重结焦"
+                axisX: xAxis
+                axisY: yAxis
+                color: "#FD030F"
             }
 
         }

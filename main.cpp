@@ -2,10 +2,16 @@
 #include "global.h"
 #include "./setting/ethylenesetting.h"
 #include "autosavedata.h"
+#include <QFontDatabase>
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
+    int fontid = QFontDatabase::addApplicationFont(QCoreApplication::applicationDirPath()+"/SourceCodePro-Regular.ttf");
+    QString mshy = QFontDatabase::applicationFontFamilies(fontid).at(0);
+    QFont font(mshy);
+    QApplication::setFont(font);
+
 //    QDate a(2016,4,30);
 //    QDate b(2016,8,20);
 //    qDebug()<<"月份差测试:"<<AutoSaveData::monthTo (a,b);

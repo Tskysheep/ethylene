@@ -29,7 +29,7 @@ Rectangle {
     Rectangle{
         anchors.centerIn: parent
         width: 550
-        height: 600
+        height: 500
         border.width: 1
         border.color: "#cccccc"
         radius: 5
@@ -289,11 +289,11 @@ Rectangle {
             width: parent.width/3;
             height: parent.height/8;
             clip: true;
-            color: "#50f744"
+            color: "#5596E4"
             radius: width/8;
             anchors.horizontalCenter: parent.horizontalCenter ;
-            anchors.bottom: parent.bottom ;
-            anchors.bottomMargin: height/2;
+            anchors.top: mainCol.bottom ;
+            anchors.topMargin: 20;
             property alias  noshow: masking.visible ;
             enabled: !noshow
             Text {
@@ -313,6 +313,9 @@ Rectangle {
                 anchors.fill: parent ;
                 onClicked: {
                     saveButton.noshow=true;
+                    mainWindow.tubein_alert_temp = Number(tubeInSlider.value)
+                    mainWindow.tubeout_alert_temp = Number(tubeOutSlider.value)
+                    mainWindow.tubecot_alert_temp = Number(tubeCOTSlider.value)
                     console.log("/YJS/tubeIn",tubeInSlider.value);
                     ESINI.setValue("/YJS/tubeIn",tubeInSlider.value);
                     ESINI.setValue("/YJS/tubeOut",tubeOutSlider.value);
@@ -323,8 +326,6 @@ Rectangle {
             }
 
         }
-
-
 
         FileDialog {
               id: fileDialog
@@ -349,13 +350,13 @@ Rectangle {
     Component.onCompleted: {
         console.log("运行了");
         saveButton.noshow=true;
-        tubeInTempEdit.text=ESINI.getValue("/YJS/tubeIn",1000);
+        tubeInTempEdit.text=ESINI.getValue("/YJS/tubeIn",950);
         tubeInSlider.value=tubeInTempEdit.text;
-        tubeOutTempEdit.text=ESINI.getValue("/YJS/tubeOut",1000);
+        tubeOutTempEdit.text=ESINI.getValue("/YJS/tubeOut",1080);
         tubeOutSlider.value=tubeOutTempEdit.text;
-        tubeCOTTempEdit.text=ESINI.getValue("/YJS/tubeCot",1000);
+        tubeCOTTempEdit.text=ESINI.getValue("/YJS/tubeCot",850);
         tubeCOTSlider.value=tubeCOTTempEdit.text;
-        cycleEdit.text=ESINI.getValue("/YJS/cycle",12);
+        cycleEdit.text=ESINI.getValue("/YJS/cycle",1);
         cycleSlider.value=cycleEdit.text;
         savePath.text=ESINI.getValue("/YJS/savrPath","C:/ethylene");
 

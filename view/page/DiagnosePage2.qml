@@ -8,8 +8,8 @@ import QtGraphicalEffects 1.0
 Item {
     id:root
     anchors.fill: parent
-    property date fromDate: new Date("2017-09-10 00:00:00")
-    property date toDate:new Date("2017-09-14 00:00:00")
+    property date fromDate: new Date(toDate.getTime() - 10*24*60*60*1000)
+    property date toDate:new Date()
     property var  analyzeResult: []
     property var searchDatas: []
 
@@ -55,7 +55,10 @@ Item {
         ["PI1351_10","PI1352_10"]
     ]
 
+    property var colordelegate: ["#13B92E","#E1D121","#FD9F02","#FD030F"]
+
     function refresh2(){
+        searchDatas = []
 
         var fromDateStr = fromDatPicker.year + "-" +
                 fromDatPicker.month + "-" +
@@ -77,6 +80,7 @@ Item {
             sdata.TMTIN = [] //入管温度
             sdata.ACSSP = [] //出管时间查询的横跨段压力 across setcion pressure
             sdata.ACSSP2 = [] //入管时间查询的横跨段压力
+            sdata.COT = [] //出管cot
             sdata.VTIP = [] //文丘里压力 venturi press
             sdata.Date = ""
             for(var b = 0; b < 48; b++){
@@ -84,6 +88,8 @@ Item {
                 sdata.TMTIN.push(result.tubeInData[b].data[a].temp)
                 //sdata.ACSSP.push(result.tubeCotData[b].data[a].temp)
                 //sdata.ACSSP2.push(result.tubeCotData2[b].data[a].temp)
+                //sdata.COT.push(result.tubeDiagnoseCotData[b].data[a].temp)
+                sdata.COT.push(845)
                 sdata.ACSSP.push(200)
                 sdata.ACSSP2.push(199)
 
@@ -94,7 +100,7 @@ Item {
 
         //文丘里
         for(var c = 0; c < searchDatas.length; c++){
-             var obj = server.diagnoseAccessPressureData(5,searchDatas[c].Date);
+             var obj = server.diagnoseVenturiPressureData(currentFuranceNum,searchDatas[c].Date);
             for(var d = 0; d < 48; d++){
                 if(d >=0 && d <= 11){
                     searchDatas[c].VTIP.push(obj.value1)
@@ -354,6 +360,32 @@ Item {
                 anchors.verticalCenter: analisisBnt.verticalCenter
             }
 
+            Image{
+                width: 20
+                height: 20
+                id:fromtime_select_btn
+                source: "qrc:/imgs/icons/button_calendar_press.png"
+                scale:btnCalender1.containsMouse ? 1.1 : 1
+                anchors.verticalCenter: analisisBnt.verticalCenter
+                Behavior on scale {
+                    PropertyAnimation{
+                        properties: "scale"
+                        duration: 200
+                        easing.type: Easing.OutBack
+                    }
+                }
+
+                MouseArea{
+                    anchors.fill: fromtime_select_btn
+                    id:btnCalender1
+                    hoverEnabled: true
+                    onClicked: {
+                        fromtime_calendarDialog.open()
+                    }
+                }
+            }
+
+
             //text
             Item{
                 width: 20
@@ -363,7 +395,7 @@ Item {
                     anchors.centerIn: parent
                     text: "到"
                     font.pixelSize: 18
-                    color: "#12eeaa"
+                    //color: "#12eeaa"
                 }
             }
 
@@ -372,6 +404,32 @@ Item {
                 id:toDatPicker
                 anchors.verticalCenter: analisisBnt.verticalCenter
             }
+
+            Image{
+                width: 20
+                height: 20
+                id:totime_select_btn
+                source: "qrc:/imgs/icons/button_calendar_press.png"
+                scale:btnCalender2.containsMouse ? 1.1 : 1
+                anchors.verticalCenter: analisisBnt.verticalCenter
+                Behavior on scale {
+                    PropertyAnimation{
+                        properties: "scale"
+                        duration: 200
+                        easing.type: Easing.OutBack
+                    }
+                }
+
+                MouseArea{
+                    anchors.fill: totime_select_btn
+                    id:btnCalender2
+                    hoverEnabled: true
+                    onClicked: {
+                        totime_calendarDialog.open()
+                    }
+                }
+            }
+
 
             //text
             Item{
@@ -382,7 +440,7 @@ Item {
                     anchors.centerIn: parent
                     text: "炉号"
                     font.pixelSize: 18
-                    color: "#12eeaa"
+                    //color: "#12eeaa"
                 }
             }
 
@@ -415,7 +473,7 @@ Item {
                 text: "导出图片"
                 bgColor: "#344750"
                 onBngClicked: {
-                    chartViewsItem.grabToImage(function(result){
+                   root.grabToImage(function(result){
                         var url = server.getSaveFilePath();
                         result.saveToFile(url);
                     });
@@ -424,7 +482,123 @@ Item {
         }
 
     }
-/*
+
+    Item {
+        id:tubes
+        width: parent.width
+        height: bar_row.height
+        //anchors.top: rightTopBar.bottom
+        //anchors.topMargin: 50
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 100
+        Row{
+            id:bar_row
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 15
+            Repeater{
+                model: 48
+                delegate:Column{
+                        id:bar_col
+                        Rectangle{
+                            id:one_bar
+                            height: 400
+                            width: 15
+                            color: searchDatas.length > 0 ? colordelegate[searchDatas[0].OUTRS[index]] :"#5596E4"
+                            MouseArea{
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: {
+                                    if(hoverEnabled){
+                                        hoverEnabled = false
+                                        one_bar.color = "green"
+                                    }else{
+                                        hoverEnabled = true
+                                        one_bar.color = "#5596E4"
+                                    }
+                                }
+
+                                onEntered: {
+                                    flowChartView._lineSeries.clear()
+                                    flowChartView._lineSeries2.clear()
+                                    flowChartView._lineSeries3.clear()
+                                    flowChartView._scatterSeries.clear()
+                                    flowChartView._scatterSeries1.clear()
+                                    flowChartView._scatterSeries2.clear()
+                                    flowChartView._scatterSeries3.clear()
+
+                                    flowChartView.x_axis_min = fromDate
+
+                                    var tdt = new Date(Qt.formatDateTime(toDate,"yyyy-MM-dd"))
+                                    tdt.setHours(0)
+                                    tdt.setMinutes(0)
+                                    tdt.setSeconds(0)
+                                    flowChartView.x_axis_max = tdt
+
+                                    flowChartView.title = String(index+1)+"号管结焦趋势"
+                                    for(var a = 0; a < searchDatas.length; a++){
+                                        var dtime = new Date(searchDatas[a].Date)
+                                        dtime.setHours(0)
+                                        dtime.setMinutes(0)
+                                        dtime.setSeconds(0)
+
+                                        flowChartView._lineSeries.append(dtime,searchDatas[a].OUTRS[index])
+                                        flowChartView._lineSeries2.append(dtime,searchDatas[a].INRS[index])
+                                        flowChartView._lineSeries3.append(dtime,searchDatas[a].TMTDIVCOTRS[index])
+                                        switch(Number(searchDatas[a].OUTRS[index])){
+                                                case 0:
+                                                    flowChartView._scatterSeries.append(dtime,searchDatas[a].OUTRS[index])
+                                                    break;
+                                                case 1:
+                                                    flowChartView._scatterSeries1.append(dtime,searchDatas[a].OUTRS[index])
+                                                    break;
+                                                case 2:
+                                                    flowChartView._scatterSeries2.append(dtime,searchDatas[a].OUTRS[index])
+                                                    break;
+                                                case 3:
+                                                    flowChartView._scatterSeries3.append(dtime,searchDatas[a].OUTRS[index])
+                                          }
+
+                                        switch(Number(searchDatas[a].INRS[index])){
+                                                case 0:
+                                                    flowChartView._scatterSeries.append(dtime,searchDatas[a].INRS[index])
+                                                    break;
+                                                case 1:
+                                                    flowChartView._scatterSeries1.append(dtime,searchDatas[a].INRS[index])
+                                                    break;
+                                                case 2:
+                                                    flowChartView._scatterSeries2.append(dtime,searchDatas[a].INRS[index])
+                                                    break;
+                                                case 3:
+                                                    flowChartView._scatterSeries3.append(dtime,searchDatas[a].INRS[index])
+                                          }
+                                    }
+
+                                    flowChartView.show()
+                                }
+
+                                onExited: {
+                                    flowChartView.hide()
+                                }
+                            }
+                        }
+                        Text {
+                            text: index +1
+                            font.pixelSize: 15
+                        }
+                    }
+            }
+        }
+
+    }
+
+    Text {
+        anchors.top: tubes.bottom
+        anchors.topMargin: 5
+        anchors.horizontalCenter: parent.horizontalCenter
+        text: "管号"
+    }
+
+    /*
               //sky:文丘里值输入
     Rectangle{
         width: parent.width
@@ -499,7 +673,7 @@ Item {
     }
 */
 
-    Item{
+/*    Item{
 
         width: parent.width
         height: analysisChartView.height
@@ -524,17 +698,20 @@ Item {
             id:analysisChartView
             width: parent.width
             height: 500
+            legend.visible:false
+
 
             BarSeries{
                 id:bars
                 axisX: BarCategoryAxis{
+                    titleText: "管号"
                     categories: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,
                     22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,
                         44,45,46,47,48]
                 }
 
                 BarSet{
-                    id:aabarset
+                    id:aabarse
                     values: [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,,2,2,2,2,2,2,2]
                 }
 
@@ -615,9 +792,8 @@ Item {
             }
 
         }
-*/
-    }
-
+    }*/
+/*
     //dilaog管列表筛选框
     CustomDialog{
         id: tubeSelectorDialog
@@ -720,13 +896,7 @@ Item {
         }
     }
 
-    //sky:悬浮的柱形图
-    DiagnoseChartView{
-        id:flowChartView
-        anchors.centerIn: parent
-        width: analysisChartView.width - 300//parent.width /2
-        height: analysisChartView.height - 200//parent.height /3
-    }
+*/
 
     Connections{
         target: utils
@@ -738,6 +908,7 @@ Item {
             for(var a = 0; a < searchDatas.length; a++){
                 var out_result = [];
                 var in_result = [];
+                var tmt_div_cot_result = [];
                 var out_sum = 0;
                 var in_sum = 0;
                 for(var b = 0; b < 48; b++){
@@ -746,6 +917,8 @@ Item {
 
                     in_result.push(analyzeResult[48*searchDatas.length + (48*a+b)])
                     in_sum += Number(analyzeResult[48*searchDatas.length + (48*a+b)])
+
+                    tmt_div_cot_result.push(searchDatas[a].TMTOUT[b]/searchDatas[a].COT[b])
                 }
                 searchDatas[a].OUTRS = out_result
                 searchDatas[a].OUTAVG = (out_sum/48).toFixed(0)
@@ -753,6 +926,8 @@ Item {
                 searchDatas[a].INRS = in_result
                 searchDatas[a].INAVG = (in_sum/48).toFixed(0)
                 //console.log(a,in_sum/48)
+
+                searchDatas[a].TMTDIVCOTRS = tmt_div_cot_result
             }
 
             console.log("分析结果",analyzeResult)
@@ -776,12 +951,22 @@ Item {
                 console.log(searchDatas[c].OUTAVG)
                 console.log(searchDatas[c].INAVG)
 
-            }
-*/
+            }*/
+
         }
     }
 
 
+
+    //sky:悬浮的柱形图
+    DiagnoseChartView{
+        id:flowChartView
+        anchors.bottom: tubes.top
+        anchors.bottomMargin:  -200
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: tubes.width - 300//parent.width /2
+        height: tubes.height + 200 //parent.height /3
+    }
 
     Rectangle{
         id:analyze_dialog
@@ -808,5 +993,39 @@ Item {
             anchors.centerIn: parent
         }
     }
+
+    CustomDialog{
+        id:fromtime_calendarDialog
+        title: "选择日期"
+        content:Calendar{
+            id:calendar1
+            anchors.fill: parent
+        }
+        onAccepted: {
+            //globalDate = calendar1.selectedDate;
+            fromDatPicker.setYear(String(calendar1.selectedDate.getFullYear()))
+            fromDatPicker.setMonth(String(calendar1.selectedDate.getMonth() + 1))
+            fromDatPicker.setDay(String(calendar1.selectedDate.getDate()))
+        }
+
+    }
+
+    CustomDialog{
+        id:totime_calendarDialog
+        title: "选择日期"
+        content:Calendar{
+            id:calendar2
+            anchors.fill: parent
+        }
+        onAccepted: {
+            //globalDate = calendar2.selectedDate;
+            toDatPicker.setYear(String(calendar2.selectedDate.getFullYear()))
+            toDatPicker.setMonth(String(calendar2.selectedDate.getMonth() + 1))
+            toDatPicker.setDay(String(calendar2.selectedDate.getDate()))
+        }
+
+
+    }
+
 
 }

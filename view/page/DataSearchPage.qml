@@ -187,6 +187,29 @@ Item {
                         DatePicker{
                             id:fromDatePicker
                         }
+                        Image{
+                            width: 20
+                            height: fromDatePicker.height
+                            id:fromtime_select_btn
+                            source: "qrc:/imgs/icons/button_calendar_press.png"
+                            scale:btnCalender1.containsMouse ? 1.1 : 1
+                            Behavior on scale {
+                                PropertyAnimation{
+                                    properties: "scale"
+                                    duration: 200
+                                    easing.type: Easing.OutBack
+                                }
+                            }
+
+                            MouseArea{
+                                anchors.fill: fromtime_select_btn
+                                id:btnCalender1
+                                hoverEnabled: true
+                                onClicked: {
+                                    fromtime_calendarDialog.open()
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -209,6 +232,31 @@ Item {
                         DatePicker{
                             id:toDatePicker
                         }
+
+                        Image{
+                            width: 20
+                            height: toDatePicker.height
+                            id:totime_select_btn
+                            source: "qrc:/imgs/icons/button_calendar_press.png"
+                            scale:btnCalender2.containsMouse ? 1.1 : 1
+                            Behavior on scale {
+                                PropertyAnimation{
+                                    properties: "scale"
+                                    duration: 200
+                                    easing.type: Easing.OutBack
+                                }
+                            }
+
+                            MouseArea{
+                                anchors.fill: totime_select_btn
+                                id:btnCalender2
+                                hoverEnabled: true
+                                onClicked: {
+                                    totime_calendarDialog.open()
+                                }
+                            }
+                        }
+
                     }
                 }
 
@@ -241,7 +289,6 @@ Item {
             }
 
         }
-
         //content           sky:显示数据内容的区域
         Rectangle{
             id: content
@@ -318,4 +365,35 @@ Item {
             }
         }
     }
+
+    CustomDialog{
+        id:fromtime_calendarDialog
+        title: "选择日期"
+        content:Calendar{
+            id:calendar1
+            anchors.fill: parent
+        }
+        onAccepted: {
+            //globalDate = calendar1.selectedDate;
+            fromDatePicker.setYear(String(calendar1.selectedDate.getFullYear()))
+            fromDatePicker.setMonth(String(calendar1.selectedDate.getMonth() + 1))
+            fromDatePicker.setDay(String(calendar1.selectedDate.getDate()))
+        }
+    }
+
+    CustomDialog{
+        id:totime_calendarDialog
+        title: "选择日期"
+        content:Calendar{
+            id:calendar2
+            anchors.fill: parent
+        }
+        onAccepted: {
+            //globalDate = calendar2.selectedDate;
+            toDatePicker.setYear(String(calendar2.selectedDate.getFullYear()))
+            toDatePicker.setMonth(String(calendar2.selectedDate.getMonth() + 1))
+            toDatePicker.setDay(String(calendar2.selectedDate.getDate()))
+        }
+    }
+
 }

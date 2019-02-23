@@ -92,7 +92,7 @@ public:
     Q_INVOKABLE QJsonObject all_tube_show(int forunceNum,QDateTime from_DateTime, QDateTime to_DateTime);
     //sky add:结焦诊断相关数据获取
     Q_INVOKABLE QJsonObject diagnoseData(int forunceNum,QStringList column_names ,QDateTime frome_DateTime,QDateTime to_DateTime);
-    Q_INVOKABLE QJsonObject diagnoseAccessPressureData(int forunceNum,QString date);
+    Q_INVOKABLE QJsonObject diagnoseVenturiPressureData(int forunceNum,QString date);
     Q_PROPERTY(QString currentUser READ currentUser NOTIFY currentUserChanged)
     //返回当前用户对象
     QString currentUser();
@@ -100,16 +100,16 @@ public:
     Q_PROPERTY(int currentUserAccess READ currentUserAccess NOTIFY currentUserAccessChanged)
     int currentUserAccess();
     //sky add 获取炉管数据的最新时间
-    Q_INVOKABLE QDateTime access_tube_newest_time();
+    Q_INVOKABLE QDateTime access_tube_newest_time(int forunceNum);
     //获取最新的入管，出管，ＣＯＴ温度 以JSON数组的格式返回
-    Q_INVOKABLE QJsonArray access_tube_in_temp();
-    Q_INVOKABLE QJsonArray access_tube_out_temp();
-    Q_INVOKABLE QJsonArray access_tube_cot_temp();
+    Q_INVOKABLE QJsonArray access_tube_in_temp(int forunceNum);
+    Q_INVOKABLE QJsonArray access_tube_out_temp(int forunceNum);
+    Q_INVOKABLE QJsonArray access_tube_cot_temp(int forunceNum);
     //更新最新显示数据
     Q_INVOKABLE void refresh_data(){
-        this->access_tube_in_temp();
-        this->access_tube_out_temp();
-        this->access_tube_cot_temp();
+        //this->access_tube_in_temp(i);
+        //this->access_tube_out_temp();
+        //this->access_tube_cot_temp();
     }
     //设置备份路径
     Q_INVOKABLE void setDumpPath(QString path);
@@ -150,13 +150,14 @@ public:
                                  const QString& value3,
                                  const QString& value4);
     //sky 修改压力
-    Q_INVOKABLE void updatePressData(QString forunceNum,
+    Q_INVOKABLE bool updatePressData(QString forunceNum,
                                         QStringList old_values,
                                         QStringList new_values,
                                         QString old_time,
                                         QString new_time);
     //sky 查询压力
     Q_INVOKABLE QJsonArray access_pressdata(QString forunceNum,QString from_time,QString to_time);
+    Q_INVOKABLE QJsonObject access_acrossection_pressdata(QStringList acrosssections,QDateTime time);
 
     //导入压强数据
     Q_INVOKABLE bool pushPressureData(const int &fn, const QJsonArray& data, const QDateTime& date);
@@ -221,5 +222,12 @@ private:
     QString e_ip;
     QString e_dbname;
     int e_dbport;
+
+    //sky 本地数据库连接相关信息
+    QString local_dbtype;
+    QString local_ip;
+    QString local_dbname;
+    QString local_dbuser;
+    QString local_dbpwd;
 };
 #endif // MYSQLSERVER_H

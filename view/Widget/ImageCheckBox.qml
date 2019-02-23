@@ -82,14 +82,17 @@ Item {
                         anchors.centerIn: parent
                         spacing: 2
                         Text {
+                            id:subtext
                            text: subtitle
-                           font.pixelSize: 20
-                           font.family: "微软雅黑"
+                           font.pixelSize: 18
+                           //font.family: "微软雅黑"
                            color: "#FFFFFF"
                            //color:"#000000"
                         }
                         Image {
                             id: subimg
+                            height: subtext.height
+                            width: 20
                             source: subimgSrc
                         }
                    }

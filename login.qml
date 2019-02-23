@@ -16,8 +16,16 @@ ApplicationWindow {
     property string m_dbname : ""
     property string m_dbport : ""
 
+    property string m_local_dbtype : ""
+    property string m_local_ip : ""
+    property string m_local_dbname : ""
+    property string m_local_dbuser : ""
+    property string m_local_dbpwd: ""
+
+    property int currentPortIndex: 0
+
     id:mainWin
-    title: "乙烯裂解炉管外表面温度监测与智能结焦诊断分析系统"
+    title: "乙烯裂解炉管外表面温度监测与智能分析系统"
     visible: true
 
     onIsAdminChanged: {
@@ -35,6 +43,36 @@ ApplicationWindow {
             return false;
         }
     }
+
+    Component.onCompleted: {
+        var json = utils.readMoreInfo()
+        if(json !== ""){
+            //["dbtype","ip","dbname","dbport"]
+            var jsobj = JSON.parse(json)
+            m_dbtype = jsobj.db_type
+            m_ip = jsobj.db_ip
+            m_dbname = jsobj.db_name
+            m_dbport = jsobj.db_port
+
+            m_local_dbtype = jsobj.local_dbtype
+            m_local_ip = jsobj.local_ip
+            m_local_dbname = jsobj.local_dbname
+            m_local_dbuser = jsobj.local_dbuser
+            m_local_dbpwd = jsobj.local_dbpwd
+        }
+        db_type_input.text = m_dbtype
+        db_ip_input.text = m_ip
+        db_name_input.text = m_dbname
+        db_port_input.text = m_dbport
+
+        localdb_type_input.text = m_local_dbtype
+        localdb_ip_input.text = m_local_ip
+        localdb_name_input.text = m_local_dbname
+        localdb_user_input.text = m_local_dbuser
+        localdb_pwd_input.text = m_local_dbpwd
+
+    }
+
 
     Rectangle{
         id:mainRec
@@ -199,6 +237,7 @@ ApplicationWindow {
                         anchors.right: parent.right
                         text: "更多设置？"
                         color:"#aa12eeff"
+                        font.pixelSize: 15
 
                     }
 
@@ -256,23 +295,9 @@ ApplicationWindow {
     CustomDialog{
         id:more_set_Dialog
         title: "更多设置"
-        content: Item{
+        content:Item{
             id:more_root
-            width: 500
             anchors.fill: parent
-
-
-            Component.onCompleted: {
-                var json = utils.readMoreInfo()
-                if(json !== ""){
-                    //["dbtype","ip","dbname","dbport"]
-                    var jsobj = JSON.parse(json)
-                    m_dbtype = jsobj.db_type
-                    m_ip = jsobj.db_ip
-                    m_dbname = jsobj.db_name
-                    m_dbport = jsobj.db_port
-                }
-            }
 
             Rectangle{
                 //背景
@@ -280,17 +305,31 @@ ApplicationWindow {
                 color: "#152b44"
             }
 
-            Column{
-                id:more_set_input_col
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: 30
-                spacing: 20
-                Item {
-                    id: db_type
-                    width: db_type_input.width
-                    height: db_type_input.height
+            ScrollView{
+
+                anchors.fill: parent
+                verticalScrollBarPolicy: Qt.ScrollBarAlwaysOff
+
+                Column{
+                    id:more_set_input_col
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.left: parent.left
+                    anchors.leftMargin: 30
+                    spacing: 20
+                    Item {
+                        //占空
+                       height: 1
+                       width: parent.width
+                    }
+                    Text {
+                        horizontalAlignment: Text.AlignHCenter
+                        width: db_type_row.width
+                        text:"远程数据库设置"
+                        color: "white"
+                        font.pixelSize: 25
+                    }
                     Row{
+                        id:db_type_row
                         Text {
                             text: "远程数据库类型："
                             height: 25
@@ -302,17 +341,15 @@ ApplicationWindow {
                             width: 250
                             height: 25
                             text: m_dbtype
-                            holderText:m_dbtype
+                            //fontfamily: "Source Code Pro"
+                            //holderText:m_dbtype
                         }
                     }
-                }
-                Item {
-                    id: db_ip
-                    width: db_ip_input.width
-                    height: db_ip_input.height
+
                     Row{
+                        id:db_ip_row
                         Text {
-                            text: "远程数据库 IP ："
+                            text: "远程数据库地址："
                             height: 25
                             color: "white"
                             font.pixelSize: 20
@@ -322,16 +359,14 @@ ApplicationWindow {
                             width: 250
                             height: 25
                             text: m_ip
-                            holderText: m_ip
+                            //fontfamily: "Source Code Pro"
+                            //holderText: m_ip
                         }
 
                     }
-                }
-                Item {
-                    id: db_name
-                    width: db_name_input.width
-                    height: db_name_input.height
+
                     Row{
+                        id:db_name_row
                         Text {
                             text: "远程数据库名称："
                             height: 25
@@ -343,15 +378,13 @@ ApplicationWindow {
                             width: 250
                             height: 25
                             text: m_dbname
-                            holderText: m_dbname
+                            //fontfamily: "Source Code Pro"
+                            //holderText: m_dbname
                         }
                     }
-                }
-                Item {
-                    id: db_port
-                    width: db_port_input.width
-                    height: db_port_input.height
+
                     Row{
+                        id:db_port_row
                         Text {
                             text: "远程数据库端口："
                             height: 25
@@ -363,23 +396,200 @@ ApplicationWindow {
                             width: 250
                             height: 25
                             text: m_dbport
-                            holderText: m_dbport
+                            //fontfamily: "Source Code Pro"
+                            //holderText: m_dbport
                         }
                     }
+
+                    Text {
+                        horizontalAlignment: Text.AlignHCenter
+                        width: db_type_row.width
+                        text:"本地数据库设置"
+                        color: "white"
+                        font.pixelSize: 25
+                    }
+                    Row{
+                        id:localdb_type_row
+                        Text {
+                            text: "本地数据库类型："
+                            height: 25
+                            color: "white"
+                            font.pixelSize: 20
+                        }
+                        FormTextEdit{
+                            id:localdb_type_input
+                            width: 250
+                            height: 25
+                            text: m_local_dbtype
+                            //fontfamily: "Source Code Pro"
+                            //holderText:m_local_dbtype
+                        }
+                    }
+
+                    Row{
+                        id:localdb_ip_row
+                        Text {
+                            text: "本地数据库地址："
+                            height: 25
+                            color: "white"
+                            font.pixelSize: 20
+                        }
+                        FormTextEdit{
+                            id:localdb_ip_input
+                            width: 250
+                            height: 25
+                            text: m_local_ip
+                            //fontfamily: "Source Code Pro"
+                            //holderText: m_local_ip
+                        }
+
+                    }
+
+                    Row{
+                        id:localdb_name_row
+                        Text {
+                            text: "本地数据库名称："
+                            height: 25
+                            color: "white"
+                            font.pixelSize: 20
+                        }
+                        FormTextEdit{
+                            id:localdb_name_input
+                            width: 250
+                            height: 25
+                            text: m_local_dbname
+                            //fontfamily: "Source Code Pro"
+                            //holderText: m_local_dbname
+                        }
+                    }
+
+                    Row{
+                        id:localdb_port_row
+                        Text {
+                            text: "本地数据库用户："
+                            height: 25
+                            color: "white"
+                            font.pixelSize: 20
+                        }
+                        FormTextEdit{
+                            id:localdb_user_input
+                            width: 250
+                            height: 25
+                            text: m_local_dbuser
+                            //fontfamily: "Source Code Pro"
+                            //holderText: m_local_dbuser
+                        }
+                    }
+
+
+                    Row{
+                        id:localdb_pwd_row
+                        Text {
+                            text: "本地数据库密码："
+                            height: 25
+                            color: "white"
+                            font.pixelSize: 20
+                        }
+                        FormTextEdit{
+                            id:localdb_pwd_input
+                            width: 250
+                            height: 25
+                            text: m_local_dbpwd
+                            //holderText: m_local_dbpwd
+                            echoMode: TextInput.Password
+                        }
+                    }
+
+                    Text {
+                        id:portSelectShow
+                        horizontalAlignment: Text.AlignHCenter
+                        width: db_type_row.width
+                        text:"串口选择"
+                        color: "white"
+                        font.pixelSize: 25
+                    }
+
+                    Rectangle{
+                        width: parent.width
+                        height: 40
+                        color: "#454545"
+                        Flickable{
+                            anchors.fill: parent
+                            contentWidth: portrow.width
+                            Row{
+                                id:portrow
+                                Repeater{
+                                    model: portModel
+                                    delegate:CheckButton {
+                                        bntText: portName
+                                        selected: isSelected
+                                        onBntClicked: {
+                                            currentPortIndex=index;
+                                            console.log(portModel.get(index).portName)
+                                            for(var i=0;i<portModel.count;i++){
+                                                if(i===index)
+                                                    continue;
+                                                if(portModel.get(i).isSelected){
+                                                    portModel.setProperty(i,"isSelected",false);
+                                                }
+                                            }
+                                            portModel.setProperty(index,"isSelected",true);
+                                            //设置串口
+                                            //.setPortName(portName);
+                                            globalPort.setPortName(portName)
+
+                                            portSelectShow.text = "串口选择"+"(当前选择串口："+portModel.get(currentPortIndex).portName+")" //设置提示
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Item {
+                        //占空
+                       height: 1
+                       width: parent.width
+                    }
                 }
+
             }
 
-
         }
-        onAccepted: {
+
+            onAccepted: {
             console.log(db_type_input.text,db_ip_input.text,db_name_input.text,db_port_input.text)
+            console.log(localdb_type_input.text,localdb_ip_input.text,localdb_name_input.text,localdb_user_input.text)
             var more_info_json = new Object();
             more_info_json.db_type = db_type_input.text.toUpperCase()
             more_info_json.db_ip = db_ip_input.text
             more_info_json.db_name = db_name_input.text
             more_info_json.db_port = db_port_input.text
-            utils.saveMoreInfo(JSON.stringify(more_info_json,["db_type","db_ip","db_name","db_port"],"\n"))
+            more_info_json.local_dbtype = localdb_type_input.text.toLocaleUpperCase()
+            more_info_json.local_ip = localdb_ip_input.text
+            more_info_json.local_dbname = localdb_name_input.text
+            more_info_json.local_dbuser = localdb_user_input.text
+            more_info_json.local_dbpwd = localdb_pwd_input.text
+
+            utils.saveMoreInfo(JSON.stringify(more_info_json,["db_type","db_ip","db_name","db_port","local_dbtype","local_ip","local_dbname","local_dbport","local_dbpwd"],"\n"))
         }
+    }
+
+    ListModel{
+        id:portModel
+        Component.onCompleted: {
+            for(var a = 0; a < globalPort.getSerialPortsNum(); a++){
+                var portname = String(globalPort.getSerialPortName(a))
+                portModel.append({
+                                     "portName":portname,
+                                     "isSelected":false
+                                 });
+                setProperty(0,"isSelected",true);
+            }
+            portSelectShow.text = "串口选择"+"(当前选择串口："+portModel.get(currentPortIndex).portName+")"
+            if(portModel.count > 0) globalPort.setPortName(portModel.get(currentPortIndex).portName)
+        }
+
     }
 
 }

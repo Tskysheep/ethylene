@@ -7,8 +7,11 @@ import QtQuick.Dialogs 1.2
 Item {
     id:root
     anchors.fill: parent
-    property date fromDate: new Date("2016-01-01 00:00:00")
-    property date toDate:new Date("2016-01-20 00:00:00")
+
+    property date fromDate: new Date(toDate.getTime() - 10*24*60*60*1000)
+    property date toDate:new Date()
+
+
 
     property string borderColor:"#dadada"
     property string bgColor: "#f6f6f6"
@@ -39,6 +42,8 @@ Item {
         "#636363","#548B54","#8B6508","#CD2990","#B9D3EE","#8B8378","#8B5A2B","#8470FF",
         "#32CD32","#27408B","#4B0082","#6B8E23","#8B0A50","#8968CD","#708090","#7A67EE",
     ]
+
+
     //根据所设定的参数更新数据
     function refresh(){
         chartView.removeAllSeries();
@@ -389,6 +394,32 @@ Item {
                             anchors.verticalCenter: compareBnt.verticalCenter
                         }
 
+                        Image{
+                            width: 20
+                            height: 20
+                            id:fromtime_select_btn
+                            source: "qrc:/imgs/icons/button_calendar_press.png"
+                            scale:btnCalender1.containsMouse ? 1.1 : 1
+                            anchors.verticalCenter: compareBnt.verticalCenter
+                            Behavior on scale {
+                                PropertyAnimation{
+                                    properties: "scale"
+                                    duration: 200
+                                    easing.type: Easing.OutBack
+                                }
+                            }
+
+                            MouseArea{
+                                anchors.fill: fromtime_select_btn
+                                id:btnCalender1
+                                hoverEnabled: true
+                                onClicked: {
+                                    fromtime_calendarDialog.open()
+                                }
+                            }
+                        }
+
+
                         //text
                         Item{
                             width: 20
@@ -408,6 +439,32 @@ Item {
                             id:toDatPicker
                             anchors.verticalCenter: compareBnt.verticalCenter
                         }
+
+                        Image{
+                            width: 20
+                            height: 20
+                            id:totime_select_btn
+                            source: "qrc:/imgs/icons/button_calendar_press.png"
+                            scale:btnCalender2.containsMouse ? 1.1 : 1
+                            anchors.verticalCenter: compareBnt.verticalCenter
+                            Behavior on scale {
+                                PropertyAnimation{
+                                    properties: "scale"
+                                    duration: 200
+                                    easing.type: Easing.OutBack
+                                }
+                            }
+
+                            MouseArea{
+                                anchors.fill: totime_select_btn
+                                id:btnCalender2
+                                hoverEnabled: true
+                                onClicked: {
+                                    totime_calendarDialog.open()
+                                }
+                            }
+                        }
+
 
 
                         //compare button
@@ -848,4 +905,36 @@ Item {
             tubeListModel.setProperty(root.currentEdittingTube,"displayColor",color.toString());
         }
     }
+
+    CustomDialog{
+        id:fromtime_calendarDialog
+        title: "选择日期"
+        content:Calendar{
+            id:calendar1
+            anchors.fill: parent
+        }
+        onAccepted: {
+            //globalDate = calendar1.selectedDate;
+            fromDatPicker.setYear(String(calendar1.selectedDate.getFullYear()))
+            fromDatPicker.setMonth(String(calendar1.selectedDate.getMonth() + 1))
+            fromDatPicker.setDay(String(calendar1.selectedDate.getDate()))
+        }
+    }
+
+    CustomDialog{
+        id:totime_calendarDialog
+        title: "选择日期"
+        content:Calendar{
+            id:calendar2
+            anchors.fill: parent
+        }
+        onAccepted: {
+            //globalDate = calendar2.selectedDate;
+            toDatPicker.setYear(String(calendar2.selectedDate.getFullYear()))
+            toDatPicker.setMonth(String(calendar2.selectedDate.getMonth() + 1))
+            toDatPicker.setDay(String(calendar2.selectedDate.getDate()))
+        }
+    }
+
+
 }

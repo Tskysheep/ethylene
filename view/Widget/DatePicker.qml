@@ -7,6 +7,19 @@ Item {
     property var year:yearPlainText.text
     property var month:monthPlainText.text
     property var day: dayPlainText.text
+
+    function setYear(mYear){
+        yearPlainText.text = mYear
+    }
+
+    function setMonth(mMonth){
+        monthPlainText.text = mMonth
+    }
+
+    function setDay(mDay){
+        dayPlainText.text = mDay
+    }
+
     onMonthChanged: {
         if(month.length == 1){
             if(month <10 ){

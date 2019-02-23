@@ -10,6 +10,7 @@ Item {
     property int pheight: 25
     property string holderText: ""
     property var echoMode: TextInput.Normal
+    property alias fontfamily: f.font.family
 
     signal finished();
 
@@ -18,6 +19,7 @@ Item {
 
 
     TextField{
+        id:f
         anchors.fill: parent
         font.pixelSize: fontSize
         text: plainTextEdit.text

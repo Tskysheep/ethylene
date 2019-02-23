@@ -10,6 +10,9 @@ Item {
     property int pheight: 25
     property int maxNumber:9999
     property int minNumber: 0
+    property var holderText:""
+    property alias validator: plaintextedit.validator
+    property alias verticalAlignment: plaintextedit.verticalAlignment
 
     signal finished();
 
@@ -18,6 +21,7 @@ Item {
 
 
     TextField{
+        id:plaintextedit
         anchors.fill: parent
         font.pixelSize: fontSize
         text: plainTextEdit.text
@@ -26,6 +30,7 @@ Item {
         validator: IntValidator {bottom: minNumber; top: maxNumber;}
         onTextChanged: plainTextEdit.text = text;
         onFontChanged: plainTextEdit.text = text;
+        placeholderText:holderText
         style: TextFieldStyle{
             textColor: "#333333"
             background: Rectangle {

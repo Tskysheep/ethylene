@@ -127,12 +127,14 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     x:10
                                     text:modelData.tubeInTime//sky:入管时间
+                                    font.pixelSize: 12
                                 }
                                 Text{
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.right: parent.right
                                     anchors.rightMargin: 10
                                     text:modelData.tubeInTemp//sky:入管温度
+                                    font.pixelSize: 12
                                 }
 
                             }
@@ -143,12 +145,14 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     x:10
                                     text:modelData.tubeOutTime//sky:出管时间
+                                    font.pixelSize: 12
                                 }
                                 Text{
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.right: parent.right
                                     anchors.rightMargin: 10
                                     text:modelData.tubeOutTemp//sky:出管温度
+                                    font.pixelSize: 12
                                 }
                             }
                             Rectangle{
@@ -158,12 +162,14 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     x:10
                                     text:modelData.tubeCOTTime//sky:cot管时间
+                                    font.pixelSize: 12
                                 }
                                 Text{
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.right: parent.right
                                     anchors.rightMargin: 10
                                     text:modelData.tubeCOTTemp////sky:cot管温度
+                                    font.pixelSize: 12
                                 }
                             }
                         }

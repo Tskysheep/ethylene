@@ -8,36 +8,32 @@ GlobalSerialPortManager::GlobalSerialPortManager(QObject *parent) : QObject(pare
     finish_flag = false;
     auto_open_count = 0;
 
-    if(QSerialPortInfo::availablePorts().size() > 0)
-    global_port.setPort(QSerialPortInfo::availablePorts().at(0)); //用（默认）第一个可用串口
+//    if(QSerialPortInfo::availablePorts().size() > 0)
+//    global_port.setPort(QSerialPortInfo::availablePorts().at(0)); //用（默认）第一个可用串口
 
-    //打开串口
-    if(global_port.open(QIODevice::ReadWrite)){
-        port_flag = true;
-        qDebug()<<"---------------------------------open global port succ-------------------------";
-    }else {
-        emit openPortSucc_Faild(false);
-    }
 
-    //配置串口
-    global_port.setBaudRate(115200);
-    global_port.setDataBits(QSerialPort::Data8);
-    global_port.setParity(QSerialPort::NoParity);
-    global_port.setStopBits(QSerialPort::OneStop);
-    global_port.setFlowControl(QSerialPort::NoFlowControl);
 
     //配置计时器
     rec_timer.setInterval(100);
     rec_timer.setSingleShot(true);
 
     auto_op_timer.setInterval(5000);
-    rec_timer.setSingleShot(true);
+    auto_op_timer.setSingleShot(true);
 
     //建立信号和槽连接
     connect(&global_port,&QSerialPort::readyRead,this,&GlobalSerialPortManager::isRead);
     connect(&rec_timer,&QTimer::timeout,this,&GlobalSerialPortManager::readData);
     connect(&auto_op_timer,&QTimer::timeout,this,&GlobalSerialPortManager::autoOpenPort);
 
+}
+
+GlobalSerialPortManager *GlobalSerialPortManager::instance()
+{
+    static GlobalSerialPortManager *instance;
+    if(!instance)
+        instance = new GlobalSerialPortManager();
+
+    return instance;
 }
 
 bool GlobalSerialPortManager::getPortFlag()
@@ -56,36 +52,69 @@ void GlobalSerialPortManager::openPort()
 {
     if(port_flag) return;//如果当前是开启的就不用开
 
+    global_port.setPortName(cPortName);//设置串口名称
+
     if(global_port.portName() == ""){ //启动软件前没有串口的情况
-        if(QSerialPortInfo::availablePorts().count() > 0){
-            global_port.setPort(QSerialPortInfo::availablePorts().at(0));
             //打开串口
             if(global_port.open(QIODevice::ReadWrite)){
+                //配置串口
+                global_port.setBaudRate(115200);
+                global_port.setDataBits(QSerialPort::Data8);
+                global_port.setParity(QSerialPort::NoParity);
+                global_port.setStopBits(QSerialPort::OneStop);
+                global_port.setFlowControl(QSerialPort::NoFlowControl);
                 auto_open_count = 0;
                 port_flag = true;
                 qDebug()<<"---------------------------------open global port succ-------------------------";
             }else {
+                auto_open_count++;
                 emit openPortSucc_Faild(false);
                 if(auto_open_count == 2) return; //只自动打开两次，然后就不继续打开了
                 else auto_op_timer.start();
 
             }
 
-        }
+
     }else{//启动软件前有串口
         //打开串口
         if(global_port.open(QIODevice::ReadWrite)){
+            global_port.setBaudRate(115200);
+            global_port.setDataBits(QSerialPort::Data8);
+            global_port.setParity(QSerialPort::NoParity);
+            global_port.setStopBits(QSerialPort::OneStop);
+            global_port.setFlowControl(QSerialPort::NoFlowControl);
             auto_open_count = 0;
             port_flag = true;
             qDebug()<<"---------------------------------open global port succ-------------------------";
         }else {
+            auto_open_count++;
             emit openPortSucc_Faild(false);
-            if(auto_open_count == 2) return; //只自动打开两次，然后就不继续打开了
+            if(auto_open_count == 2 ) return; //只自动打开两次，然后就不继续打开了
             else auto_op_timer.start();
 
         }
 
     }
+}
+
+int GlobalSerialPortManager::getSerialPortsNum()
+{
+    return QSerialPortInfo::availablePorts().count();
+}
+
+QString GlobalSerialPortManager::getSerialPortName(int index)
+{
+    if(index < QSerialPortInfo::availablePorts().count()){
+        return QSerialPortInfo::availablePorts().at(index).portName();
+    }else{
+        return "null";
+    }
+}
+
+void GlobalSerialPortManager::setPortName(QString name)
+{
+    cPortName = name;
+
 }
 
 QVariantMap GlobalSerialPortManager::getAllData()
@@ -110,8 +139,8 @@ void GlobalSerialPortManager::readData()
     if(tmpstr.contains("@Connect_Core_PC$")){
         emit coreSyn();
         sendData("@Connect_PC_Core$");
-        success_cmd_send_flag = false;
-        finish_flag = false;
+        //success_cmd_send_flag = false;
+        //finish_flag = false;
         qDebug()<<"已发送：@Connect_PC_Core$";
         sleep(200);
         dataMap.clear();//开始新的连接，清除原来的数据
@@ -126,53 +155,47 @@ void GlobalSerialPortManager::readData()
     }
 */
 
-    if(tmpstr.contains("@PC_data_receive_failure$")){
-        if(success_cmd_send_flag){
-            sendData("@PC_receives_data$");
-            qDebug()<<"再次发送 @PC_receives_data$";
-        }
+//    if(tmpstr.contains("@PC_data_receive_failure$")){
+//        if(success_cmd_send_flag){
+//            sendData("@PC_receives_data$");
+//            qDebug()<<"再次发送 @PC_receives_data$";
+//        }
 
-        return;
-    }
+//        return;
+//    }
 
     if(tmpstr.contains("@Data_PC_saves_failure$")){
-        if(finish_flag){
-            sendData("@PC_saves_data$");
-            qDebug()<<"再次发送 @PC_saves_data$";
-        }
 
+        finish_flag = false;
+        dataMap.clear();
+        sendData("@PC_saves_data$");
+        qDebug()<<"再次发送 @PC_saves_data$";
         return;
     }
+
+//    if(finish_flag){
+//        return;
+//    }
 
     if(checkData(matchstr)){//检查数据是否完整
         QString tmpstr2 = matchstr.split(",").at(0);
-        if(dataMap.size() <= 7){
-            int key = QString(tmpstr2.at(4)).toInt();
-            if(dataMap.contains(key)){
-                if(!(dataMap.value(key) == matchstr)){//如果新接收的数据和字典中的不一样,提示，覆盖
-                    qDebug()<<key<<"号窗口发现数据有差异:";
-                    qDebug()<<"旧数据："<<dataMap.value(key);
-                    qDebug()<<"新数据："<<matchstr;
-                    qDebug()<<"已将新数据覆盖旧数据";
-
-                    dataMap.insert(key,matchstr);
-                    emit msgToast(key);
-                    sendData("@PC_receives_data$");
-                    success_cmd_send_flag = true;
-                    qDebug()<<"已发送：@PC_receives_data$";
-                    sleep(100);
-                }
-            }else{//新接收的数据在字典中不存在，直接插入
+        int key = QString(tmpstr2.at(4)).toInt();
+        if(dataMap.contains(key)){
                 dataMap.insert(key,matchstr);
-                emit msgToast(key);
+                //emit msgToast(key);
                 sendData("@PC_receives_data$");
-                success_cmd_send_flag = true;
+                //success_cmd_send_flag = true;
                 qDebug()<<"已发送：@PC_receives_data$";
+                checkFinish();
                 sleep(100);
-
-            }
-        }else{
-            emit recFinish();
+        }else{//新接收的数据在字典中不存在，直接插入
+            dataMap.insert(key,matchstr);
+            emit msgToast(key);
+            sendData("@PC_receives_data$");
+            //success_cmd_send_flag = true;
+            qDebug()<<"已发送：@PC_receives_data$";
+            checkFinish();
+            sleep(100);
         }
     }
 
@@ -208,17 +231,20 @@ bool GlobalSerialPortManager::checkData(QString data)//判断数据是否完整
     if(data.contains("??")&&data.contains("#")){
         if(data.split(",").count() == 14){
             //检查数据是否小于0 ，是则说明硬件那边测量错误
-            for(int a = 1; a < data.split(",").at(1).split(",").count(); a++){
-                if(data.split(",").at(1).split(",").at(a).toInt() < -1){
+            for(int a = 1; a < data.split("??").at(1).split(",").count(); a++){
+                if(data.split("??").at(1).split(",").at(a).toInt() <= 200){
+                    //sendData("@data_error$");
                     return false;
                 }
             }
 
             return true;
         }else{
+
             return false;
         }
     }else{
+
         return false;
     }
 
@@ -243,6 +269,15 @@ QString GlobalSerialPortManager::matchData(QString data)
 
     return QString("");
 
+}
+
+void GlobalSerialPortManager::checkFinish()
+{
+    if(dataMap.count() < 8){
+
+    }else{
+        emit recFinish();
+    }
 }
 
 void GlobalSerialPortManager::setFinishFlag(bool flag)

@@ -2,14 +2,20 @@ import QtQuick 2.0
 import QtQml.Models 2.2
 import "./bar"
 import "./Widget"
-import GlobalSerialPortManager 1.0
 import QtQuick.Controls 1.4
 //功能选择栏
 Item {
     id:mainWindow
+    property int tubein_alert_temp: 950
+    property int tubeout_alert_temp: 1080
+    property int tubecot_alert_temp: 850
     property var global_rev_data_date:[]
     property var tubein_datas: []
     property var tubeout_datas: []
+
+    onTubein_alert_tempChanged: {
+        console.log(tubein_alert_temp)
+    }
 
     property var pages:[]
     ListModel{
@@ -105,7 +111,7 @@ Item {
                                 {
                                     "subimgSrc":"qrc:/imgs/icons/import_icon.png",
                                     "selected":false,
-                                    "subtitle":"压力数据输入",
+                                    "subtitle":"文丘里数据输入",
                                     "content":"qrc:/view/page/PressureDataInputPage.qml"
                                 },
                                 {
@@ -144,7 +150,7 @@ Item {
                             "imgSrc":"qrc:/imgs/icons/diagnose.png",
                             "selected":false,
                             "title":"炉管结焦诊断",
-                            "content":"qrc:/view/page/DiagnosePage3.qml",
+                            "content":"qrc:/view/page/DiagnosePage2.qml",
                             "onHovered":false,
 //                            "subdataModel":[
 //                                {
@@ -163,26 +169,27 @@ Item {
 //                            ]
 
                         });
-//        menuList.append({
-//                            "imgSrc":"qrc:/imgs/icons/presure.png",
-//                            "selected":false,
-//                            "title":"用户信息管理",
-//                            "content":"qrc:/view/page/PressureDataImportPage.qml",
-//                            "onHovered":false,
-//                            "subdataModel":[
-//                                {
-//                                    "subimgSrc":"",
-//                                    "selected":true,
-//                                    "subtitle":"温度数据导入"
-//                                },
-//                                {
-//                                    "subimgSrc":"",
-//                                    "selected":false,
-//                                    "subtitle":"温度数据查询"
-//                                }
-//                            ]
+/*        menuList.append({
+                            "imgSrc":"qrc:/imgs/icons/presure.png",
+                            "selected":false,
+                            "title":"用户信息管理",
+                            "content":"qrc:/view/page/PressureDataImportPage.qml",
+                            "onHovered":false,
+                            "subdataModel":[
+                                {
+                                    "subimgSrc":"",
+                                    "selected":true,
+                                    "subtitle":"温度数据导入"
+                                },
+                                {
+                                    "subimgSrc":"",
+                                    "selected":false,
+                                    "subtitle":"温度数据查询"
+                                }
+                            ]
 
-//                        });
+                        });
+*/
         if(server.currentUserAccess === 1)
             menuList.append({
                                 "imgSrc":"qrc:/imgs/icons/user_icon.png",
@@ -190,20 +197,21 @@ Item {
                                 "title":"用户信息管理",
                                 "content":"qrc:/view/page/UserManagerPage.qml",
                                 "onHovered":false,
-//                                "subdataModel":[
-//                                    {
-//                                        "subimgSrc":"qrc:/imgs/icons/import_icon.png",
-//                                        "selected":false,
-//                                        "subtitle":"温度数据导入",
-//                                        "content":"qrc:/view/page/UserManagerPage.qml"
-//                                    },
-//                                    {
-//                                        "subimgSrc":"qrc:/imgs/icons/search_icon.png",
-//                                        "selected":false,
-//                                        "subtitle":"温度数据查询",
-//                                        "content":"qrc:/view/page/UserManagerPage.qml"
-//                                    }
-//                                ]
+/*                                "subdataModel":[
+                                    {
+                                        "subimgSrc":"qrc:/imgs/icons/import_icon.png",
+                                        "selected":false,
+                                        "subtitle":"温度数据导入",
+                                        "content":"qrc:/view/page/UserManagerPage.qml"
+                                    },
+                                    {
+                                        "subimgSrc":"qrc:/imgs/icons/search_icon.png",
+                                        "selected":false,
+                                        "subtitle":"温度数据查询",
+                                        "content":"qrc:/view/page/UserManagerPage.qml"
+                                    }
+                                ]
+*/
 
                             });
         menuList.append({
@@ -212,22 +220,23 @@ Item {
                             "title":"系统参数设置",
                             "content":"qrc:/view/page/SettingPage.qml",
                             "onHovered":false,
-//                            "subdataModel":[
-//                                {
-//                                    "subimgSrc":"qrc:/imgs/icons/tube_setting.png",
-//                                    "selected":false,
-//                                    "subtitle":"炉管参数设置",
+/*                            "subdataModel":[
+                                {
+                                    "subimgSrc":"qrc:/imgs/icons/tube_setting.png",
+                                    "selected":false,
+                                    "subtitle":"炉管参数设置",
 
-//                                    "content":"qrc:/view/page/SettingPage.qml"
-//                                },
-//                                {
-//                                    "subimgSrc":"qrc:/imgs/icons/local_setting.png",
-//                                    "selected":false,
-//                                    "subtitle":"本地参数设置",
+                                    "content":"qrc:/view/page/SettingPage.qml"
+                                },
+                                {
+                                    "subimgSrc":"qrc:/imgs/icons/local_setting.png",
+                                    "selected":false,
+                                    "subtitle":"本地参数设置",
 
-//                                    "content":"qrc:/view/page/SettingPage2.qml"
-//                                }
-//                            ]
+                                    "content":"qrc:/view/page/SettingPage2.qml"
+                                }
+                            ]
+*/
 
                         });
         menuList.append({
@@ -236,28 +245,36 @@ Item {
                             "title":"软件版本信息",
                             "content":"qrc:/view/page/MessagePage.qml",
                             "onHovered":false,
-//                            "subdataModel":[
-//                                {
-//                                    "subimgSrc":"qrc:/imgs/icons/import_icon.png",
-//                                    "selected":false,
-//                                    "subtitle":"温度数据导入",
-//                                    "content":"qrc:/view/page/MessagePage.qml"
-//                                },
-//                                {
-//                                    "subimgSrc":"qrc:/imgs/icons/search_icon.png",
-//                                    "selected":false,
-//                                    "subtitle":"温度数据查询",
-//                                    "content":"qrc:/view/page/MessagePage.qml"
-//                                }
-//                            ]
-
+/*                            "subdataModel":[
+                                {
+                                    "subimgSrc":"qrc:/imgs/icons/import_icon.png",
+                                    "selected":false,
+                                    "subtitle":"温度数据导入",
+                                    "content":"qrc:/view/page/MessagePage.qml"
+                                },
+                                {
+                                    "subimgSrc":"qrc:/imgs/icons/search_icon.png",
+                                    "selected":false,
+                                    "subtitle":"温度数据查询",
+                                    "content":"qrc:/view/page/MessagePage.qml"
+                                }
+                            ]
+*/
+                        });
+        menuList.append({
+                            "imgSrc":"qrc:/imgs/icons/close_btn8.png",
+                            "selected":false,
+                            "title":"退出系统",
+                            "content":"qrc:/view/page/MessagePage.qml",
+                            "onHovered":false
                         });
 
 
-        global_port.openPortSucc_Faild.connect(global_port_open_deal)
-        global_port.coreSyn.connect(global_port_coreSyn_deal)
-        global_port.msgToast.connect(global_port_msgToast_deal)
-        global_port.recFinish.connect(global_port_recFinish_del)
+        globalPort.openPortSucc_Faild.connect(global_port_open_deal)
+        globalPort.coreSyn.connect(global_port_coreSyn_deal)
+        globalPort.msgToast.connect(global_port_msgToast_deal)
+        globalPort.recFinish.connect(global_port_recFinish_del)
+        globalPort.openPort();
     }
 
     Row{
@@ -307,9 +324,9 @@ Item {
 
     }
 
-    GlobalSerialPortManager{
-        id:global_port
-    }
+//    GlobalSerialPortManager{
+//        id:global_port
+//    }
 
 
     function global_port_open_deal(flag){
@@ -335,7 +352,7 @@ Item {
 
     function global_port_recFinish_del(){
         messageText.text += "所有数据接收完成\n"
-        var data = global_port.getAllData()
+        var data = globalPort.getAllData()
         for(var a in data){
             messageText.text += a + "  " + data[a] + "\n"
         }
@@ -440,12 +457,14 @@ Item {
 
                             if(temp <= 200){
                                 var str = String(tubenum) + "号管数据为空，是否继续上传该数据？"
-                                if(server.isPushingIncompleteDatas(str))
+                                if(server.isPushingIncompleteDatas(str)){
                                     console.log("************* push invalid datas;")
+                                    console.log("窗口号",tubenum,"炉号",s,"出入管",location,"数据",temp,"时间",Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"))
                                     insertTest(location,temp,tubenum)
                                     server.pushDatas(String(tubenum),String(s),String(location),String(temp),Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"));
-
+                                }
                             }else{
+                                console.log("窗口号",tubenum,"炉号",s,"出入管",location,"数据",temp,"时间",Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"))
                                 insertTest(location,temp,tubenum)
                                 server.pushDatas(String(tubenum),String(s),String(location),String(temp),Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"));
                             }
@@ -515,16 +534,19 @@ Item {
                             var temp=Number(temp18s[a]);
 
                             // -1原为200
-                            if(temp <= -1){
+                            if(temp <= 200){
                                 var str = String(tubenum) + "号管数据为空，是否继续上传该数据？"
-                                if(server.isPushingIncompleteDatas(str))//sky:！！！！这里有逻辑问题，无论选择是或否，都会上传数据，要搞清楚
+                                if(server.isPushingIncompleteDatas(str)){//sky:！！！！这里有逻辑问题，无论选择是或否，都会上传数据，要搞清楚
+                                    console.log("窗口号",tubenum,"炉号",s,"出入管",location,"数据",temp,"时间",Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"))
                                     console.log("************* push invalid datas;")
                                     insertTest(location,temp,tubenum)
-                                    //server.pushDatas(String(tubenum),String(s),String(location),String(temp),Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"));
+                                    server.pushDatas(String(tubenum),String(s),String(location),String(temp),Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"));
+                                }
                             } else{
-                                console.log(Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"))
+                                console.log("窗口号",tubenum,"炉号",s,"出入管",location,"数据",temp,"时间",Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"))
+                                //console.log(Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"))
                                 insertTest(location,temp,tubenum)
-                                //server.pushDatas(String(tubenum),String(s),String(location),String(temp),Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"));
+                                server.pushDatas(String(tubenum),String(s),String(location),String(temp),Qt.formatDateTime(global_rev_data_date[j+1],"yyyy-MM-dd hh:mm:ss"));
                             }
                         }
 
@@ -537,8 +559,9 @@ Item {
             }
 
             console.timeEnd("保存数据所需时间")
-            global_port.sendData("@PC_saves_data$");
-            global_port.setFinishFlag(!0)
+            //global_port.sleep(1000*5)
+            //globalPort .sendData("@PC_saves_data$");
+            globalPort.setFinishFlag(!0)
 
 //------------------------sky:测试输出------------------------
             console.log("------------------------sky:测试输出------------------------")
@@ -555,7 +578,7 @@ Item {
 
     CustomDialog{
         id:toast_dialog
-        title: "无线数据导入(全局版)"
+        title: "无线数据导入"
 
         content: Rectangle {
             id:itemContent

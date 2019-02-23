@@ -11,6 +11,7 @@ void openLoginWindow()
     engine->rootContext()->setContextProperty("ESINI",ESINI);
     engine->rootContext()->setContextProperty("utils",new Utils);
     engine->rootContext()->setContextProperty("server",MysqlServer::instance());
+    engine->rootContext()->setContextProperty("globalPort",GlobalSerialPortManager::instance());
     engine->load(QUrl(QStringLiteral("qrc:/login.qml")));
 }
 //打开管理界面
@@ -22,6 +23,7 @@ void openManagerWindow()
     engine->rootContext()->setContextProperty("ESINI",ESINI);
     engine->rootContext()->setContextProperty("utils",new Utils);
     qmlRegisterType<SerialPortManager>("SerialPortManager",1,0,"SerialPortManager");
-    qmlRegisterType<GlobalSerialPortManager>("GlobalSerialPortManager",1,0,"GlobalSerialPortManager");
+    //qmlRegisterType<GlobalSerialPortManager>("GlobalSerialPortManager",1,0,"GlobalSerialPortManager");
+    engine->rootContext()->setContextProperty("globalPort",GlobalSerialPortManager::instance());
     engine->load(QUrl(QStringLiteral("qrc:/main.qml")));
 }

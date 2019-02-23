@@ -192,11 +192,16 @@ void MysqlServer::pushDatas(QString tubeNum,//炉号
                             ){
 
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -279,7 +284,14 @@ MysqlServer::MysqlServer(QObject *parent) :
         e_ip = jsobj["db_ip"].toString();
         e_dbname = jsobj["db_name"].toString();
         e_dbport = jsobj["db_port"].toString().toInt();
+
+        local_dbtype = "Q" + jsobj["local_dbtype"].toString();
+        local_ip = jsobj["local_ip"].toString();
+        local_dbname = jsobj["local_dbname"].toString();
+        local_dbuser = jsobj["local_dbuser"].toString();
+        local_dbpwd = jsobj["local_dbpwd"].toString();
         qDebug()<<e_dbtype<<e_ip<<e_dbname<<e_dbport;
+        qDebug()<<local_dbtype<<local_ip<<local_dbname<<local_dbuser<<local_dbpwd;
     }
 }
 
@@ -352,11 +364,16 @@ QJsonArray MysqlServer::compare_datas(int forunceNum,int tubeNum,QDateTime from_
     QList<datas_time> tube_out_compare_datas;
     QList<datas_time> tube_cot_compare_datas;
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -418,7 +435,42 @@ QJsonArray MysqlServer::compare_datas(int forunceNum,int tubeNum,QDateTime from_
     if(cotdb.open()){
         existCot = true;
         qDebug()<<"remote database is established!";
-        for ( int tubeNum = 1 ; tubeNum < 49 ; tubeNum++){
+        QSqlQuery query1;
+        for(int a = 0 ; a < tube_out_compare_datas.count(); a++){
+            query1.clear();
+            query1.setForwardOnly(true);
+            QDateTime time= tube_out_compare_datas.at(a).time;
+            QString timestr1 = "";
+            QString timestr2 = "";
+            if(time.date().day() < 10){
+                timestr1 = "0"+ QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().toString("hh:mm:00.0");
+                timestr2 = "0" + QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().addSecs(60).toString("hh:mm:00.0");
+
+            }else{
+                timestr1 = QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().toString("hh:mm:00.0");
+                timestr2 = QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().addSecs(60).toString("hh:mm:00.0");
+
+            }
+
+            QString querstr = "";
+            if(tubeNum < 10){
+                querstr = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >='"+timestr1+"' and ts<='"+timestr2+"'";
+            }else{
+                querstr = "select name,ts,value from history where name like 'TI16"+QString::number(tubeNum, 10)+"_"+QString::number(forunceNum, 10)+"' and ts >='"+timestr1+"' and ts<='"+timestr2+"'";
+            }
+
+            query1.exec(querstr);
+            while (query1.next()) {
+                datas_time data;
+                data.time = get_cot_dateTime(query1.value(1).toString());
+                data.temp = query1.value(2).toInt();
+                qDebug()<<"tubeCotNum : "<<tubeNum<<"time : "<<data.time<<"temp : "<<data.temp;
+                tube_cot_compare_datas.append(data);
+            }
+
+        }
+
+/*        for ( int tubeNum = 1 ; tubeNum < 49 ; tubeNum++){
             QSqlQuery query1;
             query1.setForwardOnly(true);
             if(tubeNum<10){
@@ -447,6 +499,7 @@ QJsonArray MysqlServer::compare_datas(int forunceNum,int tubeNum,QDateTime from_
                 }
             }
         }
+*/
         cotdb.close();
         //将数据根据时间排序, 并将每一天的数据合并,值为一天的平均值
         mdeal_with(&tube_cot_compare_datas);
@@ -515,11 +568,16 @@ QJsonObject MysqlServer::all_tube_show(int forunceNum,QDateTime from_DateTime, Q
             tube_cot_full_search_datas[i].clear();
         }
         //创建
-        QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-        db.setHostName("localhost");
-        db.setDatabaseName("schema");
-        db.setUserName("root");
-        db.setPassword("sky");
+        //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+        QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+        //db.setHostName("localhost");
+        db.setHostName(local_ip);
+        //db.setDatabaseName("schema");
+        db.setDatabaseName(local_dbname);
+        //db.setUserName("root");
+        db.setUserName(local_dbuser);
+        //db.setPassword("sky");
+        db.setPassword(local_dbpwd);
 
         //链接数据库
         if(db.open()){
@@ -844,11 +902,17 @@ QJsonObject MysqlServer::diagnoseData(int forunceNum,QStringList column_names, Q
         diagnose_tube_cot_full_search_datas[i].clear();
     }
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //创建
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -1490,7 +1554,7 @@ QJsonObject MysqlServer::diagnoseData(int forunceNum,QStringList column_names, Q
 
 }
 
-QJsonObject MysqlServer::diagnoseAccessPressureData(int forunceNum, QString date)
+QJsonObject MysqlServer::diagnoseVenturiPressureData(int forunceNum, QString date)
 {
 
     QJsonObject obj;
@@ -1511,37 +1575,47 @@ QJsonObject MysqlServer::diagnoseAccessPressureData(int forunceNum, QString date
         return obj;
     }
 
+
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
         qDebug()<<"database is established!";
+
+        //获取数据
+        QSqlQuery query;
+        //select * from schema.venturi_pressures where FN = '5' and  time in (select max(time) from schema.venturi_pressures where FN = '5' and time >= '2017-09-01' and time <= '2017-09-15');
+        //如果15天内有2个以上的数据记录，则取最新的那条记录
+        QString str = "SELECT value1,value2,value3,value4,time FROM schema.venturi_pressures where FN='"+
+                QString::number(forunceNum) +"' and time in (select max(time) from schema.venturi_pressures where FN = '"+
+                QString::number(forunceNum)+"' and time >= '"+from_time+"' and time <= '"+to_time+"')";
+        //qDebug()<<str;
+
+        query.exec(str);
+        while(query.next()){
+            obj.insert("value1",query.value("value1").toInt());
+            obj.insert("value2",query.value("value2").toInt());
+            obj.insert("value3",query.value("value3").toInt());
+            obj.insert("value4",query.value("value4").toInt());
+            obj.insert("time",query.value("time").toDateTime().toString("yyyy/MM/dd hh:mm:ss"));
+        }
+        db.close();
     }
     else{
         qDebug()<<"faled to connect to database";
     }
 
-    //获取数据
-    QSqlQuery query;
-    //select * from schema.venturi_pressures where FN = '5' and  time in (select max(time) from schema.venturi_pressures where FN = '5' and time >= '2017-09-01' and time <= '2017-09-15');
-    QString str = "SELECT value1,value2,value3,value4,time FROM schema.venturi_pressures where FN='"+
-            QString::number(forunceNum) +"' and time in (select max(time) from schema.venturi_pressures where FN = '"+
-            QString::number(forunceNum)+"' and time >= '"+from_time+"' and time <= '"+to_time+"')";
-    //qDebug()<<str;
 
-    query.exec(str);
-    while(query.next()){
-        obj.insert("value1",query.value("value1").toInt());
-        obj.insert("value2",query.value("value2").toInt());
-        obj.insert("value3",query.value("value3").toInt());
-        obj.insert("value4",query.value("value4").toInt());
-        obj.insert("time",query.value("time").toDateTime().toString("yyyy/MM/dd hh:mm:ss"));
-    }
 
     return obj;
 }
@@ -1559,7 +1633,7 @@ int MysqlServer::currentUserAccess()
 }
 
 //获取数据库数据最新时间
-QDateTime MysqlServer::access_tube_newest_time()
+QDateTime MysqlServer::access_tube_newest_time(int forunceNum)
 {
     //创建
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
@@ -1576,14 +1650,15 @@ QDateTime MysqlServer::access_tube_newest_time()
 
     //获取最新入管数据的时间
     QSqlQuery query;
-    query.exec("select max(Time) from schema.table_in group by TN");
+    query.exec("select max(Time) from schema.table_in where FN = '"+QString::number(forunceNum,10)+"' group by TN");
+    qDebug()<<query.lastQuery();
     query.next();
     const QDateTime dt1 = query.value(0).toDateTime();
 
     query.clear();
 
     //获取最新出管数据的时间
-    query.exec("select max(Time) from schema.table_in group by TN");
+    query.exec("select max(Time) from schema.table_out where FN = '"+QString::number(forunceNum,10)+"' group by TN");
     query.next();
     const QDateTime dt2 = query.value(0).toDateTime();
 
@@ -1602,7 +1677,7 @@ QDateTime MysqlServer::access_tube_newest_time()
 
 
 //获取 入管 的最新温度
-QJsonArray MysqlServer::access_tube_in_temp(){
+QJsonArray MysqlServer::access_tube_in_temp(int forunceNum){
     //创建
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
     db.setHostName("localhost");
@@ -1618,8 +1693,9 @@ QJsonArray MysqlServer::access_tube_in_temp(){
 
     //获取数据
     QSqlQuery query;
-    query.exec("SELECT * FROM schema.table_in where Time in(select max(Time) from schema.table_in group by TN)");
+    query.exec("SELECT * FROM schema.table_in where Time in(select max(Time) from schema.table_in where FN = '"+QString::number(forunceNum,10)+"' group by TN)");
 //    query.exec("SELECT * FROM table_in ORDER BY table_in.Time DESC");
+    qDebug()<<query.lastQuery();
 
     //json 数据
     QJsonArray jsarr;
@@ -1654,13 +1730,18 @@ QJsonArray MysqlServer::access_tube_in_temp(){
     return jsarr;
 }
 //获取 出管 的最新温度
-QJsonArray MysqlServer::access_tube_out_temp(){
+QJsonArray MysqlServer::access_tube_out_temp(int forunceNum){
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open())
@@ -1673,9 +1754,10 @@ QJsonArray MysqlServer::access_tube_out_temp(){
 
     //获取数据
     QSqlQuery query;
-    query.exec("SELECT * FROM schema.table_out where Time in(select max(Time) from schema.table_out group by TN)");
+    query.exec("SELECT * FROM schema.table_out where Time in(select max(Time) from schema.table_out where FN = '"+QString::number(forunceNum,10)+"' group by TN)");
 //    query.exec("SELECT	* FROM	table_out ORDER BY	table_out.Time DESC");
 
+    qDebug()<<query.lastQuery();
     //数据获取
     while(query.next()){
         //判断初始值是否为空
@@ -1707,7 +1789,7 @@ QJsonArray MysqlServer::access_tube_out_temp(){
 
 //获取 ＣＯＴ 的最新温度
 //转换成单独CotServer
-QJsonArray MysqlServer::access_tube_cot_temp(){
+QJsonArray MysqlServer::access_tube_cot_temp(int forunceNum){
     //链接石油厂数据
     QSqlDatabase db=QSqlDatabase::addDatabase(e_dbtype);
     //json 数据
@@ -1717,22 +1799,85 @@ QJsonArray MysqlServer::access_tube_cot_temp(){
     db.setHostName(e_ip);
     db.setDatabaseName(e_dbname);
     db.setPort(e_dbport);
+    bool existcot = false;
     if(db.open()){
-
+        //通过链接石油厂数据库加载COT温度数据
+        existcot = true;
+        QSqlQuery query1;
+        query1.setForwardOnly(true);
         qDebug()<<"remote database is established!";
+        QString timeString1;
+        QString timeString2;
+        QString querStr1;
+        QDateTime out_time;
+        for(int tubeNum = 1; tubeNum < 49; tubeNum++){
+            out_time = my_ethlene_datas.time1[tubeNum - 1];
+            if(tubeNum < 10){
+                if(out_time.date().day() < 10){
+                    timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                    timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                }else{
+                    timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                    timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                }
+                querStr1 = "select name,ts,value from history where name like 'TI160"+QString::number(tubeNum,10)+"_"+QString::number(forunceNum,10)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                //qDebug()<<querStr1;
+                //continue;
+                query1.exec(querStr1);
+                while (query1.next()) {
+                    datas_time data;
+                    data.time = get_cot_dateTime(query1.value(1).toString());
+                    data.temp = query1.value(2).toInt();
+                    qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                    my_ethlene_datas.time2[tubeNum - 1] = data.time;
+                    my_ethlene_datas.cot_temp[tubeNum - 1] = data.temp;
+                }
+                qDebug()<<query1.lastQuery();
+
+            }else{
+                if(out_time.date().day() < 10){
+                    timeString1 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                    timeString2 = "0" + QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                }else{
+                    timeString1 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().toString("hh:mm:00.0");
+                    timeString2 = QString::number(out_time.date().day(),10)+"-"+get_cot_date_month(out_time.date().month())+"-"+QString::number(out_time.date().year(),10).right(2) + " " + out_time.time().addSecs(60).toString("hh:mm:00.0");
+                }
+                querStr1 = "select name,ts,value from history where name like 'TI16"+QString::number(tubeNum,10)+"_"+QString::number(forunceNum,10)+"' and ts >='"+timeString1+"'" + " and ts <= '"+timeString2+"'";
+                //qDebug()<<querStr1;
+                //continue;
+                query1.exec(querStr1);
+                while (query1.next()) {
+                    datas_time data;
+                    data.time = get_cot_dateTime(query1.value(1).toString());
+                    data.temp = query1.value(2).toInt();
+                    qDebug()<<"out_tube_acrss_Num : "<<tubeNum<<"time : "<<data.time<<"press : "<<data.temp;
+                    my_ethlene_datas.time2[tubeNum - 1] = data.time;
+                    my_ethlene_datas.cot_temp[tubeNum - 1] = data.temp;
+                }
+                qDebug()<<query1.lastQuery();
+
+            }
+
+
+        }
+
+        for(int i = 0; i<48; i++){
+            QJsonObject jsobj;
+            jsobj.insert ("temp",my_ethlene_datas.cot_temp[i]);
+            jsobj.insert ("time",my_ethlene_datas.time2[i].toString("yyyy-MM-dd hh:mm:ss"));
+            jsarr.append (jsobj);
+        }
     }
     else{
         qDebug()<<"faled to connect to remote database";
         return jsarr;
     }
 
-    //通过链接石油厂数据库加载COT温度数据
-    QSqlQuery query1;
-    query1.setForwardOnly(true);
+
     //    qDebug()<<query1.isForwardOnly();
 
 
-    //第一种查询方法：48次查询来初始化cot数据
+/*    //第一种查询方法：48次查询来初始化cot数据
     for (int i=1;i<=48;i++){
         if(i<10){
             QString time1String = my_ethlene_datas.time1[i-1].toString("dd-MM-yy HH-mm-ss").left(2)+"-"+get_cot_date_month(my_ethlene_datas.time1[i-1].date().month())+"-"+my_ethlene_datas.time1[i-1].toString("dd-MM-yy HH-mm-ss").mid(6,2)+" "+my_ethlene_datas.time1[i-1].toString("dd-MM-yy HH-mm-ss").mid(9,2)+":"+my_ethlene_datas.time1[i-1].toString("dd-MM-yy HH-mm-ss").mid(12,2);
@@ -1778,10 +1923,13 @@ QJsonArray MysqlServer::access_tube_cot_temp(){
             }
         }
     }
-
+*/
 
     //断开远程数据库连接
-    db.close();
+    if(existcot){
+        db.close();
+    }
+
 
     return jsarr;
 
@@ -1798,11 +1946,16 @@ QJsonArray MysqlServer::pressureData(int forunceNum,int tubeNum,QDateTime from_D
 
     /**********************************查询本机的数据库**********************************/
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -2458,11 +2611,16 @@ void MysqlServer::setDumpPath (QString path){
 bool MysqlServer::login(QString userName, QString pwd, QString access)
 {
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
     m_access = access.toInt();
     m_currentUser = userName;
     currentUserAccessChanged();
@@ -2498,11 +2656,16 @@ void MysqlServer::logOut()
 QJsonArray MysqlServer::usersList()
 {
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -2531,11 +2694,16 @@ QJsonArray MysqlServer::usersList()
 QJsonArray MysqlServer::pressdataList(const QString& fn ) //获取最近十次的文丘里数据
 {
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -2569,59 +2737,89 @@ bool MysqlServer::addPressure(const QString& fn,const QString &time, const QStri
 {
     qDebug()<<"gagag"<<time;
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
+
         qDebug()<<"database is established!";
+
+        QSqlQuery query;
+
+        QString str = "INSERT INTO `schema`.`venturi_pressures` (`FN`,`value1`,`value2`,`value3`,`value4`,`time`) VALUES ('"+fn+"','"+value1+"','"+value2+"','"+value3+"','"+value4+"','"+time+"')";
+
+        bool flag;
+
+        flag = query.exec(str);
+
+        qDebug()<<"insert venturi_value"<<flag;
+
+        db.close();
+
+        return flag;
     }
     else{
         qDebug()<<"faled to connect to database";
+        return false;
     }
-    QSqlQuery query;
 
-    QString str = "INSERT INTO `schema`.`venturi_pressures` (`FN`,`value1`,`value2`,`value3`,`value4`,`time`) VALUES ('"+fn+"','"+value1+"','"+value2+"','"+value3+"','"+value4+"','"+time+"')";
-    qDebug()<<"insert venturi_value"<<query.exec(str);
 
-    db.close();
-    return true;
+
 }
 
-void MysqlServer::updatePressData(QString forunceNum, QStringList old_values, QStringList new_values, QString old_time, QString new_time)
+bool MysqlServer::updatePressData(QString forunceNum, QStringList old_values, QStringList new_values, QString old_time, QString new_time)
 {
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
         qDebug()<<"database is established!";
+        QSqlQuery query;
+
+        QString str = "UPDATE `schema`.`venturi_pressures` SET `value1` = " + new_values.at(0) +","+
+                " `value2` =  " + new_values.at(1) + "," +
+                " `value3` = " + new_values.at(2) + "," +
+                " `value4` = " + new_values.at(3) + ","
+                " `time` = '" + new_time +
+                "' where `FN` = " + forunceNum +
+                " and `time` = '" + old_time + "'";
+
+        qDebug()<<str;
+
+        bool flag;
+        flag = query.exec(str);
+
+        qDebug()<<"update venturi_value"<<flag;
+
+        db.close();
+
+        return flag;
     }
     else{
         qDebug()<<"faled to connect to database";
+        return false;
     }
-    QSqlQuery query;
 
-    QString str = "UPDATE `schema`.`venturi_pressures` SET `value1` = " + new_values.at(0) +","+
-            " `value2` =  " + new_values.at(1) + "," +
-            " `value3` = " + new_values.at(2) + "," +
-            " `value4` = " + new_values.at(3) + ","
-            " `time` = '" + new_time +
-            "' where `FN` = " + forunceNum +
-            " and `time` = '" + old_time + "'";
 
-    qDebug()<<str;
-
-    qDebug()<<"update venturi_value"<<query.exec(str);
-
-    db.close();
 
 
 }
@@ -2629,11 +2827,16 @@ void MysqlServer::updatePressData(QString forunceNum, QStringList old_values, QS
 QJsonArray MysqlServer::access_pressdata(QString forunceNum, QString from_time, QString to_time)
 {
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -2664,7 +2867,68 @@ QJsonArray MysqlServer::access_pressdata(QString forunceNum, QString from_time, 
         pressures.append(pressure);
     }
 
+    db.close();
+
     return pressures;
+
+}
+
+QJsonObject MysqlServer::access_acrossection_pressdata(QStringList acrosssections, QDateTime time)
+{
+
+    QJsonObject obj;
+    obj.insert("time",time.toString("yyyy/MM/dd hh:mm:ss"));
+    //获取横跨段数据
+    //创建石油厂数据接口
+    //QSqlDatabase cotdb=QSqlDatabase::addDatabase("QODBC");
+    QSqlDatabase cotdb=QSqlDatabase::addDatabase(e_dbtype);
+
+    //连接石油厂数据库
+    //cotdb.setHostName("10.112.200.22");
+    cotdb.setHostName(e_ip);
+    //cotdb.setDatabaseName("History");
+    cotdb.setDatabaseName(e_dbname);
+    //cotdb.setPort(10014);
+    cotdb.setPort(e_dbport);
+
+    if(cotdb.open()){
+        qDebug()<<"remote database is established!";
+        QSqlQuery query1;
+
+        for(int a = 0; a < acrosssections.count(); a++){
+            query1.clear();
+            query1.setForwardOnly(true);
+            QString timeStr1 = "";
+            QString timeStr2 = "";
+            if(time.date().day() < 10){
+                timeStr1 = "0"+ QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().toString("hh:mm:00.0");
+                timeStr2 = "0" + QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().addSecs(60).toString("hh:mm:00.0");
+            }else{
+                timeStr1 = QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().toString("hh:mm:00.0");
+                timeStr2 = QString::number(time.date().day(),10)+"-"+get_cot_date_month(time.date().month())+"-"+QString::number(time.date().year(),10).right(2) + " " + time.time().addSecs(60).toString("hh:mm:00.0");
+
+            }
+
+            QString querstr = "select name,ts,value from history where name like '"+acrosssections.at(a)+"' and ts >='"+timeStr1+"'" + " and ts <= '"+timeStr2+"'";
+            query1.exec(querstr);
+            while(query1.next()){
+                obj.insert(QString("value")+QString::number(a+1,10),query1.value(2).toInt());
+                qDebug()<<"横跨段"<<query1.value(2).toInt();
+            }
+
+            qDebug()<<query1.lastQuery();
+
+        }
+
+    }else{
+        qDebug()<<"remote database can not established!";
+    }
+
+    if(cotdb.isOpen()){
+        cotdb.close();
+    }
+
+    return obj;
 
 }
 
@@ -2675,11 +2939,16 @@ bool MysqlServer::addUser(const QString &userName, const QString &pwd, const QSt
         return false;
 
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -2707,11 +2976,16 @@ bool MysqlServer::removeUser(const QString &userName)
         return false;
 
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -2735,11 +3009,16 @@ bool MysqlServer::updateUser(const QString &userName, const QString &pwd, const 
         return false;
 
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){
@@ -2760,11 +3039,16 @@ bool MysqlServer::updateUser(const QString &userName, const QString &pwd, const 
 bool MysqlServer::verifyAdminPwd(QString pwd)
 {
     //创建
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    db.setHostName("localhost");
-    db.setDatabaseName("schema");
-    db.setUserName("root");
-    db.setPassword("sky");
+    //QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
+    QSqlDatabase db=QSqlDatabase::addDatabase(local_dbtype);
+    //db.setHostName("localhost");
+    db.setHostName(local_ip);
+    //db.setDatabaseName("schema");
+    db.setDatabaseName(local_dbname);
+    //db.setUserName("root");
+    db.setUserName(local_dbuser);
+    //db.setPassword("sky");
+    db.setPassword(local_dbpwd);
 
     //链接数据库
     if(db.open()){

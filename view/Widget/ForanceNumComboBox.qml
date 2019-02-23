@@ -6,6 +6,7 @@ import QtQuick.Controls.Styles 1.4
 ComboBox{
     width: 120
     height: 30
+    currentIndex: 5
 //    anchors.verticalCenter: compareBnt.verticalCenter
     property string borderColor:"#dadada"
     property string bgColor: "#f6f6f6"

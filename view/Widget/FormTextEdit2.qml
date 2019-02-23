@@ -28,7 +28,7 @@ Item {
         anchors.fill: parent
         font.pixelSize: fontSize
         text: plainTextEdit.text
-        verticalAlignment:TextInput.AlignBottom
+        verticalAlignment:TextInput.AlignVCenter
         horizontalAlignment: TextInput.AlignHCenter
         onTextChanged: plainTextEdit.text = text;
         onFontChanged: plainTextEdit.text = text;
