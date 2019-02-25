@@ -107,9 +107,19 @@ public:
     Q_INVOKABLE QJsonArray access_tube_cot_temp(int forunceNum);
     //更新最新显示数据
     Q_INVOKABLE void refresh_data(){
+        //初始化各个管的温度
+        for(int a=0;a<48;a++){
+            my_ethlene_datas.tube_in_temps[a]=0;
+            my_ethlene_datas.tube_out_temps[a] = 0;
+            my_ethlene_datas.cot_temp[a] = 0;
+            my_ethlene_datas.time[a] = QDateTime();
+            my_ethlene_datas.time1[a] = QDateTime();
+            my_ethlene_datas.time2[a] = QDateTime();
+        }
         //this->access_tube_in_temp(i);
         //this->access_tube_out_temp();
         //this->access_tube_cot_temp();
+
     }
     //设置备份路径
     Q_INVOKABLE void setDumpPath(QString path);
@@ -184,6 +194,8 @@ signals:
 
     void dumpDataOver();
     void allTubeShowDataGot(const QJsonObject& jsonResult);
+    void access_tube_cot_temp_got(const QJsonArray& jsonResult);
+    void diagnoseData_got(const QJsonObject& jsonResult);
 public slots:
     //导出EXCEl 指定导出路径并导出excel
     bool exportExcel1(QString fn);      //手动导出excel
@@ -196,7 +208,16 @@ public slots:
                              QStringList value3s,
                              QStringList value4s);
 
+    bool exportPressure2Excel(QString fn,
+                             QStringList datetimes,
+                             QStringList value1s,
+                             QStringList value2s,
+                             QStringList value3s,
+                             QStringList value4s);
+
     void onDumpDataOver();
+
+    void refreshDataBaseInfo();
 private:
     //当前48根管最新的温度数据保存
     ethlene_databases my_ethlene_datas;

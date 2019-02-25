@@ -25,7 +25,7 @@ ApplicationWindow {
     property int currentPortIndex: 0
 
     id:mainWin
-    title: "乙烯裂解炉管外表面温度监测与智能分析系统"
+    title: "裂解炉管智能结焦诊断系统"
     visible: true
 
     onIsAdminChanged: {

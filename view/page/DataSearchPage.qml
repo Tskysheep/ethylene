@@ -10,7 +10,7 @@ Item {
     property var searchDatas:[]
     property var result;
     property int currentGroup: 0
-    property int currentFuranceNum: 5
+    property int currentFuranceNum: foranceNumComboBox.currentIndex
     //初始化相关数据
     Component.onCompleted: {
         for(var a=0;a<12;a++){
@@ -91,6 +91,7 @@ Item {
     Connections{
         target: server
         onAllTubeShowDataGot: {
+            tip_dialog.hide("查询完成！")
             result = jsonResult
             console.log(JSON.stringify(result))
             refresh()
@@ -126,6 +127,8 @@ Item {
                     textSize: 20
                     onBngClicked: {
                         //组装查询条件,进行查询
+                        tip_dialog.show("正在查询，请稍等....")
+
                         searchDatas = [];//sky:清空全局变量searchDatas ???
 
                         var fromDateStr = fromDatePicker.year + "-" +
@@ -396,4 +399,8 @@ Item {
         }
     }
 
+
+    TipBusyIndicator{
+        id:tip_dialog
+    }
 }

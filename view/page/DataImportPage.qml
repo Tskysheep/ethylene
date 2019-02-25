@@ -35,6 +35,14 @@ Item {
     property var newvalues: []
     property var oldvalues: []
     property bool flag: false
+    onCurrentFornaceChanged: {
+        tubeInLine.clear();
+        tubeOutLine.clear();
+        tubeCOTLine.clear();
+        refresh()
+        console.log(currentFornace)
+        //console.log(JSON.stringify(requestData))
+    }
 
     //更新3管数据
     function refresh(){
@@ -47,15 +55,98 @@ Item {
 
         var st=new Date().getTime();
         requestData = {};
+
         //sky:在global中为server导出对像：engine->rootContext()->setContextProperty("server",MysqlServer::instance());
         requestData.tubeInDatas = server.access_tube_in_temp(currentFornace);//sky:将入管的数据读入暂时的数组中
         requestData.tubeOutDatas = server.access_tube_out_temp(currentFornace);//sky:将出管的数据读入暂时的数组中
+        //》》》》》》》》》》》》》》异步前
 //        requestData.tubeCOTDatas = server.access_tube_out_temp();
-        requestData.tubeCOTDatas = server.access_tube_cot_temp(currentFornace);////sky:将cot数据读入暂时的数组中
-        console.log(JSON.stringify(requestData.tubeCOTDatas))
+        //》》》》》》》》》异步后
+        requestData.tubeCOTDatas =[]
+        server.access_tube_cot_temp(currentFornace);////sky:将cot数据读入暂时的数组中
+        //console.log(JSON.stringify(requestData.tubeCOTDatas))
         //打印刷新时间
         var et=new Date().getTime();
         console.log("spend time:",et-st)
+    }
+
+
+    Connections{
+        target:server
+        onAccess_tube_cot_temp_got:{
+            requestData.tubeCOTDatas = jsonResult
+            //》》》》》》》异步后
+            console.log(">>>>>>>>>>异步后access_tube_cot_temp")
+            tubeInLine.clear();
+            tubeOutLine.clear();
+            tubeCOTLine.clear();
+
+            flash_timer.stop()
+            oldvalues = []
+            newvalues = []
+
+            var tubeInBarValues = [];
+            var tubeOutBarValues = [];
+            var tubeCOTBarValues = [];
+
+            for(var i = 0; i< 12; i++){
+                var tempIn = requestData.tubeInDatas[currentGroup*12 + i].temp;
+                var tempOut = requestData.tubeOutDatas[currentGroup*12 + i].temp;
+                var tempCot =0;
+                if(requestData.tubeCOTDatas.length !== 0){
+                    tempCot = requestData.tubeCOTDatas[currentGroup*12 + i].temp;
+                    //console.log(currentGroup*12 + i,requestData.tubeCOTDatas[currentGroup*12 + i].temp)
+                }
+                tubeInLine.append((i+1), tempIn);
+                tubeOutLine.append((i+1), tempOut);
+
+                //test for cot using tube_out datas
+                tubeCOTLine.append((i+1),tempCot);
+
+                tubeInBarValues.push(tempIn);
+                tubeOutBarValues.push(tempOut);
+
+                //test for cot using tube_out datas
+                tubeCOTBarValues.push(tempCot);
+            }
+
+            tubeInBarSet.values = tubeInBarValues;
+            tubeOutBarSet.values = tubeOutBarValues;
+            tubeCOTBarSet.values = tubeCOTBarValues;
+
+            oldvalues.push(tubeOutBarValues)
+            newvalues.push([])
+            oldvalues.push(tubeInBarValues)
+            newvalues.push([])
+            oldvalues.push(tubeCOTBarValues)
+            newvalues.push([])
+
+            for(var a = 0; a < oldvalues.length; a++){
+                for(var b = 0; b < oldvalues[a].length; b++){
+                    if(a === 0){
+                        if(Number(oldvalues[a][b]) <= mainWindow.tubeout_alert_temp){
+                            newvalues[a][b] = oldvalues[a][b]
+                        }else{
+                           newvalues[a][b] = 0
+                        }
+                    }else if(a === 1){
+                        if(Number(oldvalues[a][b]) <= mainWindow.tubein_alert_temp){
+                            newvalues[a][b] = oldvalues[a][b]
+                        }else{
+                           newvalues[a][b] = 0
+                        }
+                    }else{
+                        if(Number(oldvalues[a][b]) <= mainWindow.tubecot_alert_temp){
+                            newvalues[a][b] = oldvalues[a][b]
+                        }else{
+                           newvalues[a][b] = 0
+                        }
+                    }
+                }
+            }
+
+            flash_timer.start()
+        }
     }
 
     //串口数据导入排错检测，硬件逻辑

@@ -476,21 +476,48 @@ Item {
                 }
 
 
-                Rectangle{
-                    id:timeset
+//                Rectangle{
+//                    id:timeset
+//                    width: 20
+//                    height: 20
+//                    color: "black"
+//                    visible: false
+//                    anchors.verticalCenter: compareBnt.verticalCenter
+//                    MouseArea{
+//                        anchors.fill: timeset
+//                        onClicked: {
+//                            timepicker.open()
+//                        }
+
+//                    }
+
+//                }
+
+                Image {
+                    id: timeset
                     width: 20
                     height: 20
-                    color: "black"
                     visible: false
+                    source: "qrc:/imgs/icons/timeclock3.png"
                     anchors.verticalCenter: compareBnt.verticalCenter
+                    scale:timesetma.containsMouse ? 1.1 :1
+
+                    Behavior on scale {
+                        PropertyAnimation{
+                            properties: "scale"
+                            duration: 200
+                            easing.type: Easing.OutBack
+                        }
+                    }
+
                     MouseArea{
+                        id:timesetma
                         anchors.fill: timeset
+                        hoverEnabled: true
                         onClicked: {
                             timepicker.open()
                         }
-
                     }
-
                 }
 
 
@@ -613,7 +640,8 @@ Item {
                     hoverEnabled: true
                     anchors.fill: upPage
                     onClicked: {
-                        current_day--
+                        if(_Datas.length === 0) return;
+                            current_day--
                     }
                 }
 
@@ -640,7 +668,8 @@ Item {
                     hoverEnabled: true
                     anchors.fill: nextPage
                     onClicked: {
-                        current_day++
+                        if(_Datas.length === 0) return;
+                            current_day++
 
                     }
                 }

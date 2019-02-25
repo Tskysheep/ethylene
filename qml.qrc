@@ -114,6 +114,9 @@
         <file>icons/nextPage_icon.png</file>
         <file>icons/hongtai_logo2.jpg</file>
         <file>icons/close_btn8.png</file>
+        <file>icons/timeclock.png</file>
+        <file>icons/timeclock2.png</file>
+        <file>icons/timeclock3.png</file>
     </qresource>
     <qresource prefix="/js">
         <file>thread.js</file>

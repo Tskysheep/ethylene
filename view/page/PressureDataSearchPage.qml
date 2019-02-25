@@ -409,15 +409,27 @@ Item {
                 }
 
 
-                Rectangle{
-                    id:timeset
+                Image {
+                    id: timeset
                     width: 20
                     height: 20
-                    color: "black"
                     visible: false
+                    source: "qrc:/imgs/icons/timeclock3.png"
                     anchors.verticalCenter: parent.verticalCenter
+                    scale:timesetma.containsMouse ? 1.1 :1
+
+                    Behavior on scale {
+                        PropertyAnimation{
+                            properties: "scale"
+                            duration: 200
+                            easing.type: Easing.OutBack
+                        }
+                    }
+
                     MouseArea{
+                        id:timesetma
                         anchors.fill: timeset
+                        hoverEnabled: true
                         onClicked: {
                             timepicker.open()
                         }
@@ -439,7 +451,9 @@ Item {
                             if(changepage_btn.text === "切换到横跨段查询"){
                                 refreshData()
                             }else{
+                                tip_dialog.show("正在查询数据中，请稍等....")
                                 refreshData2()
+                                tip_dialog.hide("查询完成！")
                             }
                         }
                     }
@@ -487,8 +501,14 @@ Item {
                                 value4s.push(pressdataModel.get(a).value4)
                             }
 
-                            server.exportPressureExcel(foranceNumComboBox.currentText,
-                                                       datetimes,value1s,value2s,value3s,value4s)
+                           if(changepage_btn.text === "切换到横跨段查询"){
+                               server.exportPressureExcel(foranceNumComboBox.currentText,
+                                                          datetimes,value1s,value2s,value3s,value4s)
+                           }else{
+
+                               server.exportPressure2Excel(foranceNumComboBox.currentText,
+                                                          datetimes,value1s,value2s,value3s,value4s)
+                           }
                         }
                     }
                 }
@@ -921,6 +941,10 @@ Item {
                 }
             }
         }
+    }
+
+    TipBusyIndicator{
+        id:tip_dialog
     }
 
 }

@@ -28,6 +28,7 @@ Item {
     Rectangle{
         anchors.fill: parent
         id:rect
+        border.width: 2
         //color:"blue"
         ChartView{
             id:analysisChartView

@@ -1,6 +1,7 @@
 TEMPLATE = app
 
 QT += qml quick gui widgets sql serialport axcontainer concurrent core
+RC_FILE += icon.rc
 
 CONFIG += c++11
 

@@ -143,7 +143,7 @@ void GlobalSerialPortManager::readData()
         //finish_flag = false;
         qDebug()<<"已发送：@Connect_PC_Core$";
         sleep(200);
-        dataMap.clear();//开始新的连接，清除原来的数据
+        //dataMap.clear();//开始新的连接，清除原来的数据
         return;
     }
 
@@ -173,6 +173,8 @@ void GlobalSerialPortManager::readData()
         return;
     }
 
+
+
 //    if(finish_flag){
 //        return;
 //    }
@@ -181,21 +183,45 @@ void GlobalSerialPortManager::readData()
         QString tmpstr2 = matchstr.split(",").at(0);
         int key = QString(tmpstr2.at(4)).toInt();
         if(dataMap.contains(key)){
+            if(!finish_flag){
                 dataMap.insert(key,matchstr);
-                //emit msgToast(key);
                 sendData("@PC_receives_data$");
-                //success_cmd_send_flag = true;
                 qDebug()<<"已发送：@PC_receives_data$";
                 checkFinish();
                 sleep(100);
+            }else{
+                sendData("@PC_receives_data$");
+                qDebug()<<"已发送：@PC_receives_data$";
+                sleep(100);
+            }
+
+                  //emit msgToast(key);
+//                sendData("@PC_receives_data$");
+//                //success_cmd_send_flag = true;
+//                qDebug()<<"已发送：@PC_receives_data$";
+//                checkFinish();
+//                sleep(100);
         }else{//新接收的数据在字典中不存在，直接插入
-            dataMap.insert(key,matchstr);
-            emit msgToast(key);
-            sendData("@PC_receives_data$");
-            //success_cmd_send_flag = true;
-            qDebug()<<"已发送：@PC_receives_data$";
-            checkFinish();
-            sleep(100);
+            if(!finish_flag){
+              dataMap.insert(key,matchstr);
+              emit msgToast(key);
+              sendData("@PC_receives_data$");
+              qDebug()<<"已发送：@PC_receives_data$";
+              checkFinish();
+              sleep(100);
+            }else{
+                emit msgToast(key);
+                sendData("@PC_receives_data$");
+                qDebug()<<"已发送：@PC_receives_data$";
+                sleep(100);
+            }
+
+//            emit msgToast(key);
+//            sendData("@PC_receives_data$");
+//            //success_cmd_send_flag = true;
+//            qDebug()<<"已发送：@PC_receives_data$";
+//            checkFinish();
+//            sleep(100);
         }
     }
 

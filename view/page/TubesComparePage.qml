@@ -32,7 +32,8 @@ Item {
     property var tubeCOTResultLines: []
 
     property int currentEdittingTube:0
-    property int currentFuranceNum: 5
+    property int currentFuranceNum: foranceComboBox.currentIndex
+
 
     property var colorSet:[
         "#FF0000","#FF1493","#104E8B","#080808","#00688B","#00CED1","#3A5FCD","#404040",

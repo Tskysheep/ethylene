@@ -12,6 +12,7 @@ Item {
     property date toDate:new Date()
     property var  analyzeResult: []
     property var searchDatas: []
+    property var result
 
     property string borderColor:"#dadada"
     property string bgColor: "#f6f6f6"
@@ -30,7 +31,8 @@ Item {
     property var pressureResultLines: []
 
     property int currentEdittingTube:0
-    property int currentFuranceNum: 5
+    property int currentFuranceNum: foranceComboBox.currentIndex
+
 
     property var colorSet:[
         "#FF0000","#FF1493","#104E8B","#080808","#00688B","#00CED1","#3A5FCD","#404040",
@@ -56,24 +58,17 @@ Item {
     ]
 
     property var colordelegate: ["#13B92E","#E1D121","#FD9F02","#FD030F"]
+    property int selectedbarindex: -1
+    onSelectedbarindexChanged: {
+        refresh_flowChartView(selectedbarindex)
+    }
 
     function refresh2(){
         searchDatas = []
 
-        var fromDateStr = fromDatPicker.year + "-" +
-                fromDatPicker.month + "-" +
-                fromDatPicker.day + " 00:00:00";
-        var toDateStr = toDatPicker.year + "-" +
-                toDatPicker.month + "-" +
-                toDatPicker.day + " 23:59:59"
+        //console.log(JSON.stringify(result))
+        //console.log(typeof result.tubeCotData[0].data[0])
 
-        var fDate = new Date(fromDateStr);
-        var tDate = new Date(toDateStr);
-        fromDate = fDate;
-        toDate = tDate;
-
-        var result = server.diagnoseData(currentFuranceNum,acrossSection[currentFuranceNum],fDate,tDate)
-        console.log(result)
         for(var a = 0; a < result.tubeOutData[0].data.length; a++){
             var sdata = {}
             sdata.TMTOUT = [] //出管温度
@@ -84,35 +79,89 @@ Item {
             sdata.VTIP = [] //文丘里压力 venturi press
             sdata.Date = ""
             for(var b = 0; b < 48; b++){
-                sdata.TMTOUT.push(result.tubeOutData[b].data[a].temp)
-                sdata.TMTIN.push(result.tubeInData[b].data[a].temp)
-                //sdata.ACSSP.push(result.tubeCotData[b].data[a].temp)
-                //sdata.ACSSP2.push(result.tubeCotData2[b].data[a].temp)
-                //sdata.COT.push(result.tubeDiagnoseCotData[b].data[a].temp)
-                sdata.COT.push(845)
-                sdata.ACSSP.push(200)
-                sdata.ACSSP2.push(199)
+                if(result.tubeOutData[b].data[a] !== undefined){
+                    sdata.TMTOUT.push(result.tubeOutData[b].data[a].temp)
+                }else{
+                    error_content.text = "入管温度数据缺失"
+                    error_dialog.open()
+                    return;
+                }
+
+                if(result.tubeInData[b].data[a] !== undefined){
+                    sdata.TMTIN.push(result.tubeInData[b].data[a].temp)
+                }else{
+                    error_content.text = "出管温度数据缺失"
+                    error_dialog.open()
+                    return;
+                }
+
+                if(result.tubeCotData[b].data[a] !== undefined){
+                    sdata.ACSSP.push(result.tubeCotData[b].data[a].temp)
+                }else{
+                    error_content.text = "出管横跨段数据缺失"
+                    error_dialog.open()
+                    return;
+                }
+
+                if(result.tubeCotData2[b].data[a] !== undefined){
+                     sdata.ACSSP2.push(result.tubeCotData2[b].data[a].temp)
+                }else{
+                    error_content.text = "入管横跨段数据缺失"
+                    error_dialog.open()
+                    return;
+                }
+
+                if(result.tubeDiagnoseCotData[b].data[a] !== undefined){
+                    sdata.COT.push(result.tubeDiagnoseCotData[b].data[a].temp)
+                }else{
+                    error_content.text = "COT数据缺失"
+                    error_dialog.open()
+                    return;
+                }
+
+
+
+
+
+//                sdata.COT.push(845)
+//                sdata.ACSSP.push(200)
+//                sdata.ACSSP2.push(199)
 
             }
             sdata.Date = result.tubeOutData[0].data[a].time.split(" ")[0]
             searchDatas.push(sdata)
         }
 
+        if(searchDatas.length === 0){
+            error_content.text = "该时间段内无数据"
+            error_dialog.open()
+            return;
+        }
+
         //文丘里
         for(var c = 0; c < searchDatas.length; c++){
              var obj = server.diagnoseVenturiPressureData(currentFuranceNum,searchDatas[c].Date);
-            for(var d = 0; d < 48; d++){
-                if(d >=0 && d <= 11){
-                    searchDatas[c].VTIP.push(obj.value1)
-                }else if(d >= 12 && d <= 23){
-                    searchDatas[c].VTIP.push(obj.value2)
-                }else if(d >= 24 && d <= 35){
-                    searchDatas[c].VTIP.push(obj.value3)
-                }else{
-                    searchDatas[c].VTIP.push(obj.value4)
+
+            if(obj.hasOwnProperty('value1')){
+                for(var d = 0; d < 48; d++){
+                    if(d >=0 && d <= 11){
+                        searchDatas[c].VTIP.push(obj.value1)
+                    }else if(d >= 12 && d <= 23){
+                        searchDatas[c].VTIP.push(obj.value2)
+                    }else if(d >= 24 && d <= 35){
+                        searchDatas[c].VTIP.push(obj.value3)
+                    }else{
+                        searchDatas[c].VTIP.push(obj.value4)
+                    }
                 }
+
+            }else{
+                error_content.text = "文丘里数据缺失，请先输入文丘里数据！"
+                error_dialog.open()
+                return;
             }
-        }
+
+       }
 
         //console.log(searchDatas[0].TMTOUT)
         //console.log(searchDatas[0].TMTIN)
@@ -315,6 +364,65 @@ Item {
     }
 
 
+    function refresh_flowChartView(index){
+        flowChartView._lineSeries.clear()
+        flowChartView._lineSeries2.clear()
+        flowChartView._lineSeries3.clear()
+        flowChartView._scatterSeries.clear()
+        flowChartView._scatterSeries1.clear()
+        flowChartView._scatterSeries2.clear()
+        flowChartView._scatterSeries3.clear()
+
+        flowChartView.x_axis_min = fromDate
+
+        var tdt = new Date(Qt.formatDateTime(toDate,"yyyy-MM-dd"))
+        tdt.setHours(0)
+        tdt.setMinutes(0)
+        tdt.setSeconds(0)
+        flowChartView.x_axis_max = tdt
+
+        flowChartView.title = String(index+1)+"号管结焦趋势"
+        for(var a = 0; a < searchDatas.length; a++){
+            var dtime = new Date(searchDatas[a].Date)
+            dtime.setHours(0)
+            dtime.setMinutes(0)
+            dtime.setSeconds(0)
+
+            flowChartView._lineSeries.append(dtime,searchDatas[a].OUTRS[index])
+            flowChartView._lineSeries2.append(dtime,searchDatas[a].INRS[index])
+            flowChartView._lineSeries3.append(dtime,searchDatas[a].TMTDIVCOTRS[index])
+            switch(Number(searchDatas[a].OUTRS[index])){
+                    case 0:
+                        flowChartView._scatterSeries.append(dtime,searchDatas[a].OUTRS[index])
+                        break;
+                    case 1:
+                        flowChartView._scatterSeries1.append(dtime,searchDatas[a].OUTRS[index])
+                        break;
+                    case 2:
+                        flowChartView._scatterSeries2.append(dtime,searchDatas[a].OUTRS[index])
+                        break;
+                    case 3:
+                        flowChartView._scatterSeries3.append(dtime,searchDatas[a].OUTRS[index])
+              }
+
+            switch(Number(searchDatas[a].INRS[index])){
+                    case 0:
+                        flowChartView._scatterSeries.append(dtime,searchDatas[a].INRS[index])
+                        break;
+                    case 1:
+                        flowChartView._scatterSeries1.append(dtime,searchDatas[a].INRS[index])
+                        break;
+                    case 2:
+                        flowChartView._scatterSeries2.append(dtime,searchDatas[a].INRS[index])
+                        break;
+                    case 3:
+                        flowChartView._scatterSeries3.append(dtime,searchDatas[a].INRS[index])
+              }
+        }
+
+        flowChartView.show()
+    }
+
     //selected tube list model 数据模型存储和提供数据
     ListModel{
         id:selectedTubeListModel
@@ -459,10 +567,37 @@ Item {
                 id:analisisBnt
                 onBngClicked: {
 
-                    refresh2()
+                    //组合时间
+                    var fromDateStr = fromDatPicker.year + "-" +
+                            fromDatPicker.month + "-" +
+                            fromDatPicker.day + " 00:00:00";
+                    var toDateStr = toDatPicker.year + "-" +
+                            toDatPicker.month + "-" +
+                            toDatPicker.day + " 23:59:59"
+
+                    var fDate = new Date(fromDateStr);
+                    var tDate = new Date(toDateStr);
+                    fromDate = fDate;
+                    toDate = tDate;
+
+                    server.diagnoseData(currentFuranceNum,acrossSection[currentFuranceNum],fDate,tDate)
+                    tip_title.text = "查询数据中，请稍等...."
+                    analyze_dialog.visible = true
+
+
 //                                tip_title.text = "正在分析中，请稍等...."
 //                                analyze_dialog.visible = true;
 //                                utils.test();
+                }
+            }
+
+            Connections{
+                target: server
+                onDiagnoseData_got:{
+                    tip_title.text = "查询完成！"
+                    analyze_dialog.visible = false
+                    result = jsonResult
+                    refresh2()
                 }
             }
 
@@ -483,6 +618,21 @@ Item {
 
     }
 
+    ListModel{
+        id:colorlist
+        Component.onCompleted: {
+            for(var a = 0; a < 48; a++){
+                colorlist.append({
+                                 "barnum" : a + 1,
+                                 "_color" : "#5596E4",
+                                  "can_hovered":true,
+                                   "can_enabled":true
+
+                                 })
+            }
+        }
+    }
+
     Item {
         id:tubes
         width: parent.width
@@ -496,84 +646,45 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 15
             Repeater{
-                model: 48
+                model: colorlist
                 delegate:Column{
                         id:bar_col
                         Rectangle{
                             id:one_bar
                             height: 400
                             width: 15
-                            color: searchDatas.length > 0 ? colordelegate[searchDatas[0].OUTRS[index]] :"#5596E4"
+                            color: _color //"#5596E4" //searchDatas.length > 0 ? colordelegate[searchDatas[0].OUTRS[index]] :"#5596E4"
                             MouseArea{
                                 anchors.fill: parent
-                                hoverEnabled: true
+                                hoverEnabled: can_hovered
+                                enabled: can_enabled
+
                                 onClicked: {
+
                                     if(hoverEnabled){
-                                        hoverEnabled = false
-                                        one_bar.color = "green"
+                                        for(var a = 0; a < colorlist.count; a++){
+                                            colorlist.setProperty(a,"can_hovered",false)
+                                            colorlist.setProperty(a,"can_enabled",false)
+
+                                        }
+                                        colorlist.setProperty(index,"can_enabled",true)
+                                        one_bar.border.width = 2
+                                        //refresh_flowChartView(index)
+                                        selectedbarindex = index
+                                        openflowchartview.start()
+
                                     }else{
-                                        hoverEnabled = true
-                                        one_bar.color = "#5596E4"
+                                        for(var a = 0; a < colorlist.count; a++){
+                                            colorlist.setProperty(a,"can_hovered",true)
+                                            colorlist.setProperty(a,"can_enabled",true)
+                                        }
+                                        one_bar.border.width = 0
                                     }
+
                                 }
 
                                 onEntered: {
-                                    flowChartView._lineSeries.clear()
-                                    flowChartView._lineSeries2.clear()
-                                    flowChartView._lineSeries3.clear()
-                                    flowChartView._scatterSeries.clear()
-                                    flowChartView._scatterSeries1.clear()
-                                    flowChartView._scatterSeries2.clear()
-                                    flowChartView._scatterSeries3.clear()
-
-                                    flowChartView.x_axis_min = fromDate
-
-                                    var tdt = new Date(Qt.formatDateTime(toDate,"yyyy-MM-dd"))
-                                    tdt.setHours(0)
-                                    tdt.setMinutes(0)
-                                    tdt.setSeconds(0)
-                                    flowChartView.x_axis_max = tdt
-
-                                    flowChartView.title = String(index+1)+"号管结焦趋势"
-                                    for(var a = 0; a < searchDatas.length; a++){
-                                        var dtime = new Date(searchDatas[a].Date)
-                                        dtime.setHours(0)
-                                        dtime.setMinutes(0)
-                                        dtime.setSeconds(0)
-
-                                        flowChartView._lineSeries.append(dtime,searchDatas[a].OUTRS[index])
-                                        flowChartView._lineSeries2.append(dtime,searchDatas[a].INRS[index])
-                                        flowChartView._lineSeries3.append(dtime,searchDatas[a].TMTDIVCOTRS[index])
-                                        switch(Number(searchDatas[a].OUTRS[index])){
-                                                case 0:
-                                                    flowChartView._scatterSeries.append(dtime,searchDatas[a].OUTRS[index])
-                                                    break;
-                                                case 1:
-                                                    flowChartView._scatterSeries1.append(dtime,searchDatas[a].OUTRS[index])
-                                                    break;
-                                                case 2:
-                                                    flowChartView._scatterSeries2.append(dtime,searchDatas[a].OUTRS[index])
-                                                    break;
-                                                case 3:
-                                                    flowChartView._scatterSeries3.append(dtime,searchDatas[a].OUTRS[index])
-                                          }
-
-                                        switch(Number(searchDatas[a].INRS[index])){
-                                                case 0:
-                                                    flowChartView._scatterSeries.append(dtime,searchDatas[a].INRS[index])
-                                                    break;
-                                                case 1:
-                                                    flowChartView._scatterSeries1.append(dtime,searchDatas[a].INRS[index])
-                                                    break;
-                                                case 2:
-                                                    flowChartView._scatterSeries2.append(dtime,searchDatas[a].INRS[index])
-                                                    break;
-                                                case 3:
-                                                    flowChartView._scatterSeries3.append(dtime,searchDatas[a].INRS[index])
-                                          }
-                                    }
-
-                                    flowChartView.show()
+                                    refresh_flowChartView(index)
                                 }
 
                                 onExited: {
@@ -598,305 +709,7 @@ Item {
         text: "管号"
     }
 
-    /*
-              //sky:文丘里值输入
-    Rectangle{
-        width: parent.width
-        height: 50
-        id: rightTopBar2
-        //border.width: 1
-        //border.color: borderColor
-        color:"transparent"
 
-        Row{
-            anchors.centerIn: parent
-            spacing: 25
-            Text {
-                height: 30
-                text: "文丘里："
-                verticalAlignment: Text.AlignBottom
-                font.pixelSize: 23
-            }
-            FormTextEdit2{
-                id:venturi1
-                width:150
-                height: 30
-                focuscolor: "blue"
-                non_focuscolor: "black"
-                pradius: 8
-                holderText:"请输入数值1"
-            }
-            FormTextEdit2{
-                id:venturi2
-                width:150
-                height: 30
-                focuscolor: "blue"
-                non_focuscolor: "black"
-                pradius: 8
-                holderText:"请输入数值2"
-            }
-            FormTextEdit2{
-                id:venturi3
-                width:150
-                height: 30
-                focuscolor: "blue"
-                non_focuscolor: "black"
-                pradius: 8
-                holderText:"请输入数值3"
-            }
-            FormTextEdit2{
-                id:venturi4
-                width:150
-                height: 30
-                focuscolor: "blue"
-                non_focuscolor: "black"
-                pradius: 8
-                holderText:"请输入数值4"
-            }
-
-            Text{
-                height: 30
-                id:label1
-                verticalAlignment: Text.AlignBottom
-                text: "单位（kpa）"
-
-
-            }
-            Text{
-                height: 30
-                verticalAlignment: Text.AlignBottom
-                text: "*未输入数值，则默认为零"
-                color:"red"
-            }
-        }
-
-    }
-*/
-
-/*    Item{
-
-        width: parent.width
-        height: analysisChartView.height
-        anchors.top: rightTopBar.bottom
-        anchors.topMargin: 50
-        id: chartViewsItem
-
-        Glow{
-            anchors.fill: analysisChartView
-            color: "#10000000"
-            spread: 0.1
-            radius: 5
-            source: analysisChartView
-            transparentBorder: true
-            fast: true
-            cached: true
-            samples: 15
-
-        }
-
-        ChartView{
-            id:analysisChartView
-            width: parent.width
-            height: 500
-            legend.visible:false
-
-
-            BarSeries{
-                id:bars
-                axisX: BarCategoryAxis{
-                    titleText: "管号"
-                    categories: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,
-                    22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,
-                        44,45,46,47,48]
-                }
-
-                BarSet{
-                    id:aabarse
-                    values: [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,,2,2,2,2,2,2,2]
-                }
-
-                onHovered: {
-                    if(status){
-                        //console.log(index + 1)
-                        flowChartView.x_axis_min = fromDate
-                        flowChartView.x_axis_max = toDate
-                        flowChartView.title = (index + 1)+"号管结焦趋势"
-                        flowChartView._lineSeries.clear()
-                        flowChartView._scatterSeries.clear()
-                        for(var a = 0; a < searchDatas.length; a++){
-                            flowChartView._lineSeries.append(new Date(searchDatas[a].Date),searchDatas[a].OUTRS[index])
-                            flowChartView._scatterSeries.append(new Date(searchDatas[a].Date),searchDatas[a].OUTRS[index])
-                        }
-
-                        flowChartView.visible = true
-                    }else{
-                        flowChartView.visible = false
-                    }
-                }
-            }
-        }
-
-
-/*        ChartView{
-            id:analysisChartView
-            width: parent.width - parent.width/4
-            height: 500
-            x:(parent.width - analysisChartView.width)/2
-            title: "结焦趋势"
-            titleColor: fontColorNormal
-            titleFont.pixelSize: 20
-            antialiasing: true
-            legend.visible: false
-            property var maxValue: 5
-            property var minValue: 0
-            backgroundColor: "#00000000"
-
-            ValueAxis{
-                id:yAxis
-                min: analysisChartView.minValue
-                max: analysisChartView.maxValue
-                tickCount: 6
-                labelFormat: "%0.00f"
-                titleText: "结焦程度"
-            }
-            DateTimeAxis{
-                id:xAxis
-                min:fromDate
-                max: toDate
-                format: "yy/MM/dd"
-                titleText: "日期：年/月/日"
-            }
-            SplineSeries{
-                id:lineSeries
-                axisX: xAxis
-                axisY: yAxis
-            }
-
-            ScatterSeries{
-                id:scatterSeries
-                axisX: xAxis
-                axisY: yAxis
-                onHovered: {
-                    if(state){
-                        var p = utils.getPos()
-                        //console.log(root.x,root.y)
-                        //console.log(root.width,root.height)
-                        //console.log(p.x,p.y)
-                        flowChartView.x = analysisChartView.x//p.x - root.x - flowChartView.width/2 //(root.x + flowChartView.width)/2
-                        flowChartView.y = analysisChartView.y//p.y - root.x - flowChartView.height/2 //(root.y + flowChartView.width)/2
-                        flowChartView.show()
-                    }else{
-                        flowChartView.hide()
-                    }
-                }
-            }
-
-        }
-    }*/
-/*
-    //dilaog管列表筛选框
-    CustomDialog{
-        id: tubeSelectorDialog
-        title: "管列表筛选框"
-        content: Item{
-            width: 500
-            height: 500
-            ListView{
-                anchors.fill: parent
-                id:tubeChosserListView
-                model: tubeListModel
-                clip: true
-                delegate: Item{
-                    width: tubeChosserListView.width
-                    height: 80
-
-                    Row{
-                        anchors.centerIn: parent
-                        spacing: 30
-                        RadioButton{
-                            checked: selected
-                            onCheckedChanged: tubeListModel.setProperty(index,"selected",checked);
-                            anchors.verticalCenter: parent.verticalCenter
-                            style: RadioButtonStyle {
-                                      indicator: Rectangle {
-                                              implicitWidth: 40
-                                              implicitHeight: 40
-                                              radius: 20
-                                              border.color: control.activeFocus ? "darkblue" : "gray"
-                                              border.width: 6
-                                              Rectangle {
-                                                  anchors.fill: parent
-                                                  visible: control.checked
-                                                  color: "#555"
-                                                  radius: 20
-                                                  anchors.margins: 6
-                                              }
-                                      }
-                                  }
-                        }
-
-                        Text{
-                            anchors.verticalCenter: parent.verticalCenter
-                            font.pixelSize: 16
-                            text: Number(index+1)+"号管"
-                        }
-
-                        Rectangle{
-                            width: 200
-                            height: 5
-                            color: displayColor
-                            anchors.verticalCenter: parent.verticalCenter
-                            border.width: 1
-                            border.color: "#cfcfcf"
-                        }
-
-                        Image {
-                            source: "qrc:/imgs/icons/modify.png"
-                            anchors.verticalCenter: parent.verticalCenter
-                            MouseArea{
-                                anchors.fill: parent
-                                onClicked: {
-                                    currentEdittingTube = index;
-                                    colorDialog.open();
-                                }
-                            }
-                        }
-                    }
-
-                    Rectangle{
-                        anchors.bottom: parent.bottom
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: parent.width-100
-                        height: 1
-                        color: borderColor
-                        opacity: 0.5
-                    }
-                }
-            }
-        }
-        onAccepted: {
-            selectedTubeListModel.clear();
-
-            for(var a = 0; a<tubeListModel.count; a++){
-                if(tubeListModel.get(a).selected){
-                    selectedTubeListModel.append({
-                                                     "tubeNum":tubeListModel.get(a).tubeNum,
-                                                     "displayColor":tubeListModel.get(a).displayColor,
-                                                     "selected":true
-                                                 });
-                }
-            }
-        }
-    }
-
-    ColorDialog{
-        id:colorDialog
-        onAccepted: {
-            tubeListModel.setProperty(root.currentEdittingTube,"displayColor",color.toString());
-        }
-    }
-
-*/
 
     Connections{
         target: utils
@@ -932,6 +745,11 @@ Item {
 
             console.log("分析结果",analyzeResult)
             if(analyzeResult[1] === "Some") return;
+
+            colorlist.clear();
+            for(var a = 0 ; a < 48; a++){
+                colorlist.append({"barnum" : a+1,"_color":colordelegate[searchDatas[0].OUTRS[a]],"can_hovered":true,"can_enabled":true})
+            }
 
 
             //xAxis.min = new Date(searchDatas[searchDatas.length - 1].Date)
@@ -1027,5 +845,25 @@ Item {
 
     }
 
+    Timer{
+        id:openflowchartview
+        interval: 100
+        repeat: false
+        onTriggered: {
+            refresh_flowChartView(selectedbarindex)
+        }
+    }
+
+    CustomDialog{
+        id:error_dialog
+        title: "错误"
+        content: Text {
+            anchors.fill: parent
+            horizontalAlignment: Text.AlignHCenter
+            font.pixelSize: 20
+            id:error_content
+            text: ""
+        }
+    }
 
 }

@@ -339,7 +339,7 @@ Item {
 
     function global_port_coreSyn_deal(){
         global_rev_data_date = []
-        messageText.text = "连接成功\n"
+        messageText.text += "连接成功\n"
         toast_dialog.open()
 
     }
@@ -373,7 +373,7 @@ Item {
         }else{
 
 
-            messageText.text = "      数据导入成功"
+            messageText.text += "      数据导入成功\n"
             //global_port.sendData("@PC_saves_data$")
 
 

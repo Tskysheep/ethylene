@@ -52,7 +52,7 @@ Rectangle {
             spacing: 20
 
             Text{
-                text:"软件名称: 乙烯裂解炉管外表面温度监测与智能分析系统"
+                text:"软件名称: 裂解炉管智能结焦诊断系统"
                 font.pixelSize: 20
                 font.family: "微软雅黑"
                 color: "#000000"
